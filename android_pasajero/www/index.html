@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#121824">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" >
+    <title>ViajaYa Frontera - Pasajero</title>
+    <script>if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js'); }</script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        :root {
+            --primary: #00c853;
+            --primary-dark: #009624;
+            --accent: #2979ff;
+            --bg-dark: #121824;
+            --card-bg: #1e2638;
+            --text-light: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        #header {
+            background-color: var(--card-bg);
+            padding: 10px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: var(--primary);
+        }
+
+        .badge-border {
+            background: rgba(0, 200, 83, 0.15);
+            color: var(--primary);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid rgba(0, 200, 83, 0.3);
+        }
+
+        #map-wrapper {
+            padding: 10px 12px 0 12px;
+        }
+
+        #map {
+            height: 250px;
+            width: 100%;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+            z-index: 1;
+        }
+
+        #bottom-sheet {
+            background: var(--card-bg);
+            margin: 10px 12px 20px 12px;
+            border-radius: 18px;
+            padding: 14px 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .location-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.04);
+            padding: 7px 10px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .dot-origin { background: var(--primary); }
+        .dot-dest { background: var(--accent); }
+
+        select, input {
+            background: transparent;
+            border: none;
+            color: var(--text-light);
+            font-size: 0.84rem;
+            width: 100%;
+            outline: none;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        select option {
+            background: var(--card-bg);
+            color: var(--text-light);
+            font-size: 0.85rem;
+        }
+
+        .btn-gps {
+            background: rgba(41, 121, 255, 0.15);
+            color: var(--accent);
+            border: 1px solid rgba(41, 121, 255, 0.4);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .price-card {
+            background: linear-gradient(135deg, rgba(0,200,83,0.1) 0%, rgba(41,121,255,0.1) 100%);
+            border: 1px solid rgba(0,200,83,0.3);
+            border-radius: 14px;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .price-main {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .price-sub {
+            font-size: 0.9rem;
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .btn-order {
+            background: var(--primary);
+            color: #000;
+            font-weight: 700;
+            font-size: 1.1rem;
+            padding: 14px;
+            border: none;
+            border-radius: 14px;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0,200,83,0.3);
+        }
+
+        .btn-order:active {
+            transform: scale(0.98);
+        }
+
+        .payment-selector {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .pay-pill {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .pay-pill.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+            font-weight: 600;
+        }
+
+        .status-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(0,200,83,0.2);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s infinite linear;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <div class="brand">
+            🚗 ViajaYa
+            <span style="font-weight: normal; color: var(--text-muted); font-size: 0.85rem;">Frontera</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <span class="badge-border">🚗 Pasajero</span>
+        </div>
+    </div>
+
+    <div id="map-wrapper">
+        <div id="map"></div>
+    </div>
+
+    <div id="bottom-sheet">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.85rem; color: var(--text-muted);">Selecciona Origen y Destino</span>
+            <button class="btn-gps" onclick="useCurrentGPS()">🎯 Mi Ubicación GPS</button>
+        </div>
+
+        <div class="input-group">
+            <div class="location-row">
+                <div class="dot dot-origin"></div>
+                <select id="originSelect" onchange="recalculateQuote()">
+                    <!-- Coordenadas reales de ciudades de Canindeyú y Frontera -->
+                    <option value="-24.0560,-54.3060" data-name="Saltos del Guairá (Centro - PY)">📍 Origen: Saltos del Guairá (Centro)</option>
+                    <option value="-24.0415,-54.3160" data-name="Shopping China (Saltos del Guairá)">📍 Origen: Shopping China (Saltos)</option>
+                    <option value="-24.0670,-54.2620" data-name="Aduana Paraguay / Brasil">📍 Origen: Aduana PY / BR (Puente)</option>
+                    <option value="-24.0820,-54.2560" data-name="Guaíra PR (Centro / Aduana - BR)">📍 Origen: Guaíra PR (BR)</option>
+                    <option value="-23.9380,-54.2830" data-name="Mundo Novo MS (BR)">📍 Origen: Mundo Novo MS (BR)</option>
+                    <option value="-24.1370,-54.5180" data-name="La Paloma del Espíritu Santo (PY)">📍 Origen: La Paloma (PY)</option>
+                    <option value="-24.3197,-54.6750" data-name="Puente Kyjhá / Francisco C. Álvarez (PY)">📍 Origen: Puente Kyjhá (PY)</option>
+                    <option value="-24.2520,-54.7600" data-name="Katueté (PY)">📍 Origen: Katueté (PY)</option>
+                    <option value="-24.5042,-54.8575" data-name="Nueva Esperanza (PY)">📍 Origen: Nueva Esperanza (PY)</option>
+                    <option value="-24.9750,-54.9080" data-name="San Alberto (PY)">📍 Origen: San Alberto (PY)</option>
+                </select>
+            </div>
+
+            <div class="location-row">
+                <div class="dot dot-dest"></div>
+                <select id="destSelect" onchange="recalculateQuote()">
+                    <option value="-24.0820,-54.2560" data-name="Guaíra PR (Centro / Aduana - BR)">🏁 Destino: Guaíra PR (BR)</option>
+                    <option value="-24.0415,-54.3160" data-name="Shopping China (Saltos del Guairá)">🏁 Destino: Shopping China (Saltos)</option>
+                    <option value="-23.9380,-54.2830" data-name="Mundo Novo MS (BR)">🏁 Destino: Mundo Novo MS (BR)</option>
+                    <option value="-24.0560,-54.3060" data-name="Saltos del Guairá (Centro - PY)">🏁 Destino: Saltos del Guairá (Centro)</option>
+                    <option value="-24.1370,-54.5180" data-name="La Paloma del Espíritu Santo (PY)">🏁 Destino: La Paloma (PY)</option>
+                    <option value="-24.3197,-54.6750" data-name="Puente Kyjhá / Francisco C. Álvarez (PY)">🏁 Destino: Puente Kyjhá (PY)</option>
+                    <option value="-24.2520,-54.7600" data-name="Katueté (PY)">🏁 Destino: Katueté (PY)</option>
+                    <option value="-24.5042,-54.8575" data-name="Nueva Esperanza (PY)">🏁 Destino: Nueva Esperanza (PY)</option>
+                    <option value="-24.9750,-54.9080" data-name="San Alberto (PY)">🏁 Destino: San Alberto (PY)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="payment-selector">
+            <div class="pay-pill active" onclick="selectPay(this, 'CASH_PYG')">💵 Efectivo ₲</div>
+            <div class="pay-pill" onclick="selectPay(this, 'CASH_BRL')">💵 Efectivo R$</div>
+            <div class="pay-pill" onclick="selectPay(this, 'CASH_USD')">💵 Efectivo USD $</div>
+            <div class="pay-pill" onclick="selectPay(this, 'PIX')">⚡ PIX (Brasil)</div>
+            <div class="pay-pill" onclick="selectPay(this, 'TRANSFER')">🏦 Transferencia / Giro</div>
+        </div>
+
+        <div class="price-card">
+            <div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);" id="distText">Distancia: 0 km</div>
+                <div class="price-main" id="pricePYG">₲ 0</div>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Equivalentes</div>
+                <div class="price-sub" id="priceEquiv">R$ 0.00 | $ 0.00</div>
+            </div>
+        </div>
+
+        <button class="btn-order" onclick="requestRideReal()">SOLICITAR VIAJE AHORA</button>
+    </div>
+
+    <div class="status-overlay" id="statusOverlay">
+        <div class="spinner"></div>
+        <h2 id="statusTitle" style="margin-bottom: 10px; color: var(--primary);">Buscando Conductor Cercano...</h2>
+        <p id="statusDesc" style="color: var(--text-muted); max-width: 320px; font-size: 0.95rem; line-height: 1.4;">
+            Tu viaje fue enviado al servidor. Notificando a conductores en Saltos del Guairá y la frontera...
+        </p>
+        <button onclick="cancelSearch()" style="margin-top: 30px; background: transparent; border: 1px solid #ef4444; color: #ef4444; padding: 10px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;">Cancelar Solicitud</button>
+    </div>
+
+    <script>
+        let map, originMarker, destMarker, routeLine;
+        let selectedPayment = 'CASH_PYG';
+        let currentRideId = null;
+        let pollInterval = null;
+
+        function loadDynamicLocations() {
+            fetch('http://192.168.0.109:8000/api/locations/')
+                .then(res => res.json())
+                .then(locations => {
+                    if (!locations || locations.length === 0) return;
+                    const originSelect = document.getElementById('originSelect');
+                    const destSelect = document.getElementById('destSelect');
+
+                    originSelect.innerHTML = locations.map(l => 
+                        `<option value="${l.lat},${l.lng}" data-name="${l.name}">📍 Origen: ${l.name}</option>`
+                    ).join('');
+
+                    destSelect.innerHTML = locations.map((l, idx) => 
+                        `<option value="${l.lat},${l.lng}" data-name="${l.name}" ${idx === 3 ? 'selected' : ''}>🏁 Destino: ${l.name}</option>`
+                    ).join('');
+
+                    recalculateQuote();
+                })
+                .catch(err => console.log("Cargando ubicaciones estándar..."));
+        }
+
+        function initMap() {
+            // Mapa centrado en Saltos del Guairá (-24.056, -54.306)
+            map = L.map('map', { zoomControl: false }).setView([-24.056, -54.306], 12);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+
+            loadDynamicLocations();
+            recalculateQuote();
+        }
+
+        function useCurrentGPS() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    const originSelect = document.getElementById('originSelect');
+                    
+                    // Añadir opción personalizada de GPS
+                    const option = document.createElement('option');
+                    option.value = `${lat},${lng}`;
+                    option.setAttribute('data-name', 'Mi Ubicación Actual (GPS)');
+                    option.innerText = '🎯 Origen: Mi Ubicación GPS';
+                    option.selected = true;
+                    originSelect.insertBefore(option, originSelect.firstChild);
+                    
+                    recalculateQuote();
+                }, () => {
+                    alert("No se pudo obtener el GPS del dispositivo. Por favor selecciona una ubicación en la lista.");
+                });
+            } else {
+                alert("Tu navegador no soporta GPS.");
+            }
+        }
+
+        function recalculateQuote() {
+            const originVal = document.getElementById('originSelect').value.split(',').map(Number);
+            const destVal = document.getElementById('destSelect').value.split(',').map(Number);
+
+            if (originMarker) map.removeLayer(originMarker);
+            if (destMarker) map.removeLayer(destMarker);
+            if (routeLine) map.removeLayer(routeLine);
+
+            const originIcon = L.divIcon({
+                className: 'custom-icon',
+                html: `<div style="background:#00c853; width:20px; height:20px; border-radius:50%; border:3px solid white; box-shadow: 0 0 10px #00c853;"></div>`
+            });
+
+            const destIcon = L.divIcon({
+                className: 'custom-icon',
+                html: `<div style="background:#2979ff; width:20px; height:20px; border-radius:50%; border:3px solid white; box-shadow: 0 0 10px #2979ff;"></div>`
+            });
+
+            originMarker = L.marker(originVal, { icon: originIcon }).addTo(map);
+            destMarker = L.marker(destVal, { icon: destIcon }).addTo(map);
+
+            routeLine = L.polyline([originVal, destVal], {
+                color: '#2979ff',
+                weight: 5,
+                dashArray: '8, 8'
+            }).addTo(map);
+
+            map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+
+            // Enviar petición al API de Django para cotización exacta basada en lo guardado en el Dashboard Admin
+            fetch('http://192.168.0.109:8000/api/quote/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    origin_lat: originVal[0],
+                    origin_lng: originVal[1],
+                    destination_lat: destVal[0],
+                    destination_lng: destVal[1]
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.distance_km !== undefined) {
+                    document.getElementById('distText').innerText = `Distancia: ${data.distance_km} km (${data.estimated_minutes} min)`;
+                    document.getElementById('pricePYG').innerText = `₲ ${data.total_fare_pyg.toLocaleString('es-PY')}`;
+                    document.getElementById('priceEquiv').innerText = `R$ ${data.total_fare_brl} | $ ${data.total_fare_usd}`;
+                }
+            })
+            .catch(err => {
+                console.log("Servidor ocupado o sin red. Ejecutando motor de cotización local de respaldo...");
+                const R = 6371;
+                const dLat = (destVal[0] - originVal[0]) * Math.PI / 180;
+                const dLon = (destVal[1] - originVal[1]) * Math.PI / 180;
+                const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                          Math.cos(originVal[0] * Math.PI / 180) * Math.cos(destVal[0] * Math.PI / 180) *
+                          Math.sin(dLon/2) * Math.sin(dLon/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                const distKm = Math.round(R * c * 100) / 100;
+                const estMin = Math.max(3, Math.round(distKm * 2.5));
+                
+                const baseFare = 20000;
+                const kmPrice = 3500;
+                const minPrice = 500;
+                const totalPYG = Math.round(baseFare + (distKm * kmPrice) + (estMin * minPrice));
+                const totalBRL = Math.round((totalPYG / 1350) * 100) / 100;
+                const totalUSD = Math.round((totalPYG / 7600) * 100) / 100;
+
+                document.getElementById('distText').innerText = `Distancia: ${distKm} km (${estMin} min)`;
+                document.getElementById('pricePYG').innerText = `₲ ${totalPYG.toLocaleString('es-PY')}`;
+                document.getElementById('priceEquiv').innerText = `R$ ${totalBRL} | $ ${totalUSD}`;
+            });
+        }
+
+        function selectPay(el, method) {
+            document.querySelectorAll('.pay-pill').forEach(p => p.classList.remove('active'));
+            el.classList.add('active');
+            selectedPayment = method;
+        }
+
+        // Crear viaje REAL en la base de datos de Django
+        function requestRideReal() {
+            const originElem = document.getElementById('originSelect');
+            const destElem = document.getElementById('destSelect');
+
+            const originVal = originElem.value.split(',').map(Number);
+            const destVal = destElem.value.split(',').map(Number);
+
+            const originName = originElem.options[originElem.selectedIndex].getAttribute('data-name') || originElem.options[originElem.selectedIndex].text;
+            const destName = destElem.options[destElem.selectedIndex].getAttribute('data-name') || destElem.options[destElem.selectedIndex].text;
+
+            const payload = {
+                passenger_name: "Pasajero Frontera",
+                passenger_phone: "+595981" + Math.floor(100000 + Math.random() * 900000),
+                origin_address: originName,
+                origin_lat: originVal[0],
+                origin_lng: originVal[1],
+                destination_address: destName,
+                destination_lat: destVal[0],
+                destination_lng: destVal[1],
+                payment_method: selectedPayment
+            };
+
+            const overlay = document.getElementById('statusOverlay');
+            const title = document.getElementById('statusTitle');
+            const desc = document.getElementById('statusDesc');
+
+            overlay.style.display = 'flex';
+            title.innerText = "Enviando Solicitud al Servidor...";
+            desc.innerText = "Registrando tu viaje en el sistema Django...";
+
+            fetch('http://192.168.0.109:8000/api/rides/create/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (!data || !data.ride_id) {
+                    alert("⚠️ No se pudo registrar la solicitud en el servidor. Inténtalo de nuevo.");
+                    overlay.style.display = 'none';
+                    return;
+                }
+                currentRideId = data.ride_id;
+                title.innerText = "Buscando Conductor Cercano...";
+                desc.innerHTML = `Viaje <strong>#${data.ride_id}</strong> registrado.<br>Esperando que un chófer acepte en Saltos del Guairá...`;
+                
+                // Iniciar polling para detectar cuando un conductor acepte el viaje
+                pollRideStatus(currentRideId);
+            })
+            .catch(err => {
+                alert("Error al enviar solicitud: " + err);
+                overlay.style.display = 'none';
+            });
+        }
+
+        function pollRideStatus(rideId) {
+            if (!rideId) return;
+            if (pollInterval) clearInterval(pollInterval);
+            
+            pollInterval = setInterval(() => {
+                fetch(`/api/rides/${rideId}/status/`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'ACCEPTED') {
+                            clearInterval(pollInterval);
+                            const title = document.getElementById('statusTitle');
+                            const desc = document.getElementById('statusDesc');
+                            title.innerText = "¡Conductor Aceptó tu Viaje! 🎉";
+                            desc.innerHTML = `<strong>${data.driver_name || 'Marcos Benítez'}</strong> aceptó la solicitud.<br>${data.vehicle || 'Toyota Premio (AAA 123 PY)'}<br>En camino a tu ubicación.`;
+                            document.querySelector('.spinner').style.borderColor = '#00c853';
+                        }
+                    });
+            }, 2000);
+        }
+
+        function cancelSearch() {
+            if (pollInterval) clearInterval(pollInterval);
+            document.getElementById('statusOverlay').style.display = 'none';
+        }
+
+        window.onload = function() {
+            initMap();
+            recalculateQuote();
+        };
+    </script>
+</body>
+</html>

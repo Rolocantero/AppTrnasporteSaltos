@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control Admin - Transporte Frontera</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card-stat { background: #1e293b; border: 1px solid #334155; border-radius: 14px; padding: 20px; }
+        .stat-val { font-size: 1.8rem; font-weight: 800; color: #00c853; }
+        .stat-sub { font-size: 0.9rem; color: #38bdf8; font-weight: 600; }
+        .table-dark-custom { background: #1e293b; color: #f8fafc; border-radius: 12px; overflow: hidden; }
+        .table-dark-custom th { background: #334155; }
+        .btn-custom { background: #00c853; color: #000; font-weight: bold; border-radius: 10px; }
+        .btn-custom:hover { background: #009624; color: #fff; }
+        @media print {
+            body { background: #ffffff !important; color: #000000 !important; padding: 0 !important; }
+            .btn, .modal, #liveIndicator, .btn-close, input, button { display: none !important; }
+            .card-stat { border: 1px solid #333 !important; background: #ffffff !important; color: #000000 !important; box-shadow: none !important; margin-bottom: 15px !important; }
+            .table-dark { background: #ffffff !important; color: #000000 !important; }
+            .table-dark th, .table-dark td { color: #000000 !important; border-color: #ddd !important; }
+            .text-info, .text-warning, .text-success, .text-light, .text-secondary { color: #000000 !important; }
+            .badge { border: 1px solid #000 !important; color: #000 !important; background: #fff !important; }
+        }
+    </style>
+</head>
+<body class="p-4">
+
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <div>
+                <h2 class="fw-bold text-success mb-0 d-inline-flex align-items-center gap-2">
+                    🚗 Panel de Control - Flota Fronteriza
+                    <span class="badge bg-success bg-opacity-25 text-success border border-success" style="font-size: 0.75rem;" id="liveIndicator">⚡ En Vivo (3s)</span>
+                </h2>
+                <br>
+                <small class="text-secondary">Saltos del Guairá • Guaíra • Mundo Novo • Katueté</small>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="/admin/" class="btn btn-outline-light btn-sm">⚙️ Django Admin Classic</a>
+                <a href="/" target="_blank" class="btn btn-outline-info btn-sm">📱 Ver App Pasajero</a>
+                <a href="/driver/" target="_blank" class="btn btn-outline-warning btn-sm">🚖 Ver App Conductor</a>
+            </div>
+        </div>
+
+        <!-- Fila de Cotizaciones y Tarifas -->
+        <div class="row g-4 mb-3">
+            <!-- Tri-Moneda -->
+            <div class="col-lg-6">
+                <div class="card-stat h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0 fw-bold text-info">💱 Tipos de Cambio (Tri-Moneda)</h5>
+                        <button class="btn btn-custom btn-sm" onclick="saveRates()">Guardar Tasas</button>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label text-secondary small">1 Real (R$) en Guaraníes (₲)</label>
+                            <input type="number" id="rateBRL" oninput="this.dataset.edited='true'" class="form-control bg-dark text-light border-secondary" placeholder="Ej: 1400">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-secondary small">1 Dólar ($) en Guaraníes (₲)</label>
+                            <input type="number" id="rateUSD" oninput="this.dataset.edited='true'" class="form-control bg-dark text-light border-secondary" placeholder="Ej: 7500">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tarifas y Comisiones de la App -->
+            <div class="col-lg-6">
+                <div class="card-stat h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0 fw-bold text-warning">⚙️ Configuración de Tarifas y Comisión</h5>
+                        <button class="btn btn-warning btn-sm fw-bold" onclick="saveFareConfig()">Guardar Tarifas</button>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label text-secondary small">Base / Bajada (₲)</label>
+                            <input type="number" id="fareBase" oninput="this.dataset.edited='true'" class="form-control bg-dark text-light border-secondary" placeholder="Ej: 20000">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label text-secondary small">Precio / Km (₲)</label>
+                            <input type="number" id="fareKm" oninput="this.dataset.edited='true'" class="form-control bg-dark text-light border-secondary" placeholder="Ej: 3500">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label text-secondary small">Precio / Min (₲)</label>
+                            <input type="number" id="fareMin" oninput="this.dataset.edited='true'" class="form-control bg-dark text-light border-secondary" placeholder="Ej: 500">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label text-secondary small">Comisión App (%)</label>
+                            <input type="number" id="fareComm" oninput="this.dataset.edited='true'" class="form-control bg-dark text-light border-secondary" placeholder="Ej: 15">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Banner de Confirmación de Valores Activos del Día -->
+        <div class="card-stat mb-4 border-success bg-dark p-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <span class="badge bg-success text-dark me-2">✅ VALORES ACTIVOS DEL DÍA EN EL SISTEMA</span>
+                    <span class="text-light small fw-bold" id="activeSummaryText">
+                        Base: ₲ 20.000 | Precio/Km: ₲ 3.500 | Precio/Min: ₲ 500 | Comisión: 15% | 1 R$ = ₲ 1.400 | 1 USD = ₲ 7.500
+                    </span>
+                </div>
+                <div id="saveFeedback" class="text-success small fw-bold" style="display: none;">
+                    ✨ ¡Guardado correctamente en la base de datos!
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjetas KPI Financieras -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card-stat">
+                    <div class="text-secondary small">Viajes Registrados</div>
+                    <div class="stat-val" id="kpiTotalRides">0</div>
+                    <div class="stat-sub" id="kpiCompletedRides">0 Completados</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card-stat">
+                    <div class="text-secondary small">Facturación Total (Facturado)</div>
+                    <div class="stat-val" id="kpiRevenuePYG">₲ 0</div>
+                    <div class="stat-sub" id="kpiRevenueSub">R$ 0.00 | $ 0.00</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card-stat">
+                    <div class="text-secondary small">Comisión App (Utilidad Bruta)</div>
+                    <div class="stat-val text-info" id="kpiCommissionPYG">₲ 0</div>
+                    <div class="stat-sub" id="kpiCommSub">15% Comisión</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card-stat">
+                    <div class="text-secondary small">Utilidad Neta (Comisión - Gastos)</div>
+                    <div class="stat-val text-warning" id="kpiNetProfitPYG">₲ 0</div>
+                    <div class="stat-sub" id="kpiNetSub">Utilidad real de la empresa</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Secciones de Choferes y Gastos -->
+        <div class="row g-4">
+            <!-- Gestión de Choferes -->
+            <div class="col-lg-7">
+                <div class="card-stat h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold text-light mb-0">🚖 Flota de Conductores</h5>
+                        <button class="btn btn-custom btn-sm" data-bs-toggle="modal" data-bs-target="#driverModal">+ Nuevo Conductor</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-striped align-middle" id="driversTable">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>País</th>
+                                    <th>Vehículo / Chapa</th>
+                                    <th>Teléfono</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="driversTbody">
+                                <tr><td colspan="5" class="text-center text-muted">Cargando flota...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Registro de Gastos -->
+            <div class="col-lg-5">
+                <div class="card-stat h-100">
+                    <h5 class="fw-bold text-light mb-3">💸 Gastos Operativos y Flota</h5>
+                    <form onsubmit="addExpense(event)" class="mb-4">
+                        <div class="mb-2">
+                            <input type="text" id="expDesc" class="form-control bg-dark text-light border-secondary" placeholder="Descripción del Gasto (Ej. Servidor, Publicidad Meta)" required>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <select id="expCat" class="form-select bg-dark text-light border-secondary">
+                                    <option value="Publicidad">Publicidad</option>
+                                    <option value="Servidores">Servidores / Hosting</option>
+                                    <option value="Mantenimiento">Mantenimiento</option>
+                                    <option value="Otros">Otros</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <input type="number" id="expAmount" class="form-control bg-dark text-light border-secondary" placeholder="Monto (₲)" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-warning w-100 fw-bold">Registrar Gasto</button>
+                    </form>
+
+                    <h6 class="text-secondary">Historial de Gastos</h6>
+                    <ul class="list-group list-group-flush bg-transparent" id="expensesList">
+                        <li class="list-group-item bg-transparent text-muted">No hay gastos registrados.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección Agregar Ciudades / Destinos -->
+        <div class="card-stat mb-4 border-success">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h5 class="fw-bold text-success mb-0">📍 Gestión de Ciudades e Itinerarios (Para Pasajeros)</h5>
+                    <small class="text-secondary">Agrega nuevas ciudades o destinos directamente. Aparecerán al instante en la App del Pasajero.</small>
+                </div>
+            </div>
+            <div class="row g-3">
+                <!-- Formulario Agregar Ciudad -->
+                <div class="col-lg-5">
+                    <form onsubmit="addCityLocation(event)" class="bg-dark p-3 rounded border border-secondary">
+                        <h6 class="fw-bold text-light mb-3">➕ Registrar Nueva Ciudad / Destino</h6>
+                        <div class="mb-2">
+                            <label class="form-label text-secondary small">Nombre de la Ciudad / Punto</label>
+                            <input type="text" id="cityName" class="form-control bg-dark text-light border-secondary" placeholder="Ej. Curuguaty (PY), Pindoty Porá" required>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label text-secondary small">Latitud</label>
+                                <input type="number" step="any" id="cityLat" class="form-control bg-dark text-light border-secondary" placeholder="Ej. -24.4700" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label text-secondary small">Longitud</label>
+                                <input type="number" step="any" id="cityLng" class="form-control bg-dark text-light border-secondary" placeholder="Ej. -55.6970" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100 fw-bold">+ Agregar Ciudad a la App</button>
+                    </form>
+                </div>
+
+                <!-- Tabla Lista de Ciudades Activas -->
+                <div class="col-lg-7">
+                    <div class="bg-dark p-3 rounded border border-secondary h-100">
+                        <h6 class="fw-bold text-info mb-2">📋 Ciudades Habilitadas en la App</h6>
+                        <div class="table-responsive" style="max-height: 220px; overflow-y: auto;">
+                            <table class="table table-dark table-hover table-sm small mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Ciudad / Destino</th>
+                                        <th>Coordenadas (Lat, Lng)</th>
+                                        <th class="text-end">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashboardCitiesTbody">
+                                    <tr><td colspan="3" class="text-muted text-center">Cargando ciudades...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección de Reportes de Cierre de Caja y Análisis de Itinerarios -->
+        <div class="card-stat mb-4 border-info">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+                <div>
+                    <h4 class="fw-bold text-info mb-0">📑 Reportes de Cierre de Caja & Análisis de Itinerarios</h4>
+                    <small class="text-secondary">Contabilidad, Cierre Periódico e Inteligencia de Rutas para Expansión</small>
+                </div>
+                <div class="d-flex gap-2 flex-wrap" id="reportFilterBtns">
+                    <button class="btn btn-outline-info btn-sm fw-bold active" onclick="loadReport('today', this)">📅 Cierre del Día</button>
+                    <button class="btn btn-outline-info btn-sm fw-bold" onclick="loadReport('week', this)">📅 Semanal (Lun - Sáb)</button>
+                    <button class="btn btn-outline-info btn-sm fw-bold" onclick="loadReport('month', this)">📅 Cierre del Mes</button>
+                    <button class="btn btn-outline-info btn-sm fw-bold" onclick="loadReport('all', this)">📅 Historial Completo</button>
+                    <button class="btn btn-success btn-sm fw-bold ms-lg-2" onclick="downloadCSVReport()">📊 Exportar a Excel (CSV)</button>
+                    <button class="btn btn-warning btn-sm fw-bold" onclick="window.print()">🖨️ Imprimir / PDF</button>
+                </div>
+            </div>
+
+            <!-- Resumen del Periodo -->
+            <div class="alert alert-secondary bg-dark text-light border-secondary d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <div>
+                    <span class="badge bg-info text-dark me-2" id="reportPeriodBadge">Cierre del Día</span>
+                    <small id="reportDateRange" class="text-secondary">Rango: Carga de datos...</small>
+                </div>
+                <div class="fw-bold text-success fs-6" id="reportNetProfit">
+                    Ganancia Neta App: ₲ 0
+                </div>
+            </div>
+
+            <!-- Fórmula del Balance de Cierre de Caja -->
+            <div class="row g-2 mb-3 align-items-center text-center">
+                <div class="col-md-4">
+                    <div class="p-2 rounded bg-dark border border-warning">
+                        <small class="text-secondary d-block">Comisión Bruta App</small>
+                        <strong class="text-warning fs-5" id="reportCommVal">₲ 0</strong>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-2 rounded bg-dark border border-danger">
+                        <small class="text-secondary d-block">(-) Gastos Operativos Período</small>
+                        <strong class="text-danger fs-5" id="reportExpVal">₲ 0</strong>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-2 rounded bg-dark border border-success">
+                        <small class="text-secondary d-block">(=) Ganancia Neta Real (Admin)</small>
+                        <strong class="text-success fs-5" id="reportNetVal">₲ 0</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <!-- Tabla Rutas Más Solicitadas -->
+                <div class="col-lg-6">
+                    <div class="p-3 rounded bg-dark border border-secondary h-100">
+                        <h6 class="fw-bold text-success mb-2">🔥 Rutas Más Solicitadas (Mayor Demanda)</h6>
+                        <div class="table-responsive">
+                            <table class="table table-dark table-hover table-sm small mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Origen</th>
+                                        <th>Destino</th>
+                                        <th>Viajes</th>
+                                        <th>Recaudación</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="topRoutesTbody">
+                                    <tr><td colspan="4" class="text-muted">Cargando reporte...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla Oportunidades de Nuevos Itinerarios -->
+                <div class="col-lg-6">
+                    <div class="p-3 rounded bg-dark border border-secondary h-100">
+                        <h6 class="fw-bold text-warning mb-2">💡 Oportunidades para Nuevos Itinerarios (Menor Demanda)</h6>
+                        <div class="table-responsive">
+                            <table class="table table-dark table-hover table-sm small mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Origen</th>
+                                        <th>Destino</th>
+                                        <th>Viajes</th>
+                                        <th>Recomendación</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="leastRoutesTbody">
+                                    <tr><td colspan="4" class="text-muted">Cargando reporte...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla Detalle de Gastos del Período -->
+            <div class="mt-3 p-3 rounded bg-dark border border-danger">
+                <h6 class="fw-bold text-danger mb-2">💸 Gastos Operativos Deducibles del Período</h6>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover table-sm small mb-0">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Descripción</th>
+                                <th>Categoría</th>
+                                <th>Monto Restado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportExpensesTbody">
+                            <tr><td colspan="4" class="text-muted">No hay gastos registrados en este período.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Registrar Conductor -->
+    <div class="modal fade" id="driverModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark text-light border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title">Registrar Nuevo Conductor</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form onsubmit="registerDriver(event)">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Nombre Completo</label>
+                            <input type="text" id="drvName" class="form-control bg-secondary text-light border-0" required>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label">Teléfono / WA</label>
+                                <input type="text" id="drvPhone" class="form-control bg-secondary text-light border-0" placeholder="+595..." required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">País</label>
+                                <select id="drvCountry" class="form-select bg-secondary text-light border-0">
+                                    <option value="PY">🇵🇾 Paraguay</option>
+                                    <option value="BR">🇧🇷 Brasil</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Cédula / RG / CPF</label>
+                            <input type="text" id="drvDoc" class="form-control bg-secondary text-light border-0" required>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label">Modelo del Auto</label>
+                                <input type="text" id="drvModel" class="form-control bg-secondary text-light border-0" placeholder="Ej. Toyota Premio" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Chapa / Placa</label>
+                                <input type="text" id="drvPlate" class="form-control bg-secondary text-light border-0" placeholder="AAA 123 PY" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-secondary">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-custom">Registrar Conductor</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentRates = { brl: 1400, usd: 7500 };
+
+        function loadDashboard() {
+            fetch('/api/dashboard/stats/')
+                .then(res => res.json())
+                .then(data => {
+                    currentRates = data.rates;
+
+                    // Solo actualizar la caja de texto si el usuario NO la ha modificado
+                    const setValIfInactive = (id, val) => {
+                        const el = document.getElementById(id);
+                        if (el && document.activeElement !== el && !el.dataset.edited) {
+                            el.value = val;
+                        }
+                    };
+
+                    setValIfInactive('rateBRL', data.rates.brl);
+                    setValIfInactive('rateUSD', data.rates.usd);
+
+                    let base = 20000, km = 3500, min = 500, comm = 15;
+                    if (data.fare_config) {
+                        base = data.fare_config.base_fare_pyg;
+                        km = data.fare_config.price_per_km_pyg;
+                        min = data.fare_config.price_per_min_pyg;
+                        comm = data.fare_config.app_commission_percent;
+
+                        setValIfInactive('fareBase', base);
+                        setValIfInactive('fareKm', km);
+                        setValIfInactive('fareMin', min);
+                        setValIfInactive('fareComm', comm);
+                    }
+
+                    // Actualizar el resumen visual de valores activos del día
+                    document.getElementById('activeSummaryText').innerText = 
+                        `Base: ₲ ${base.toLocaleString('es-PY')} | Precio/Km: ₲ ${km.toLocaleString('es-PY')} | Precio/Min: ₲ ${min} | Comisión: ${comm}% | 1 R$ = ₲ ${data.rates.brl} | 1 USD = ₲ ${data.rates.usd}`;
+
+                    document.getElementById('kpiTotalRides').innerText = data.total_rides;
+                    document.getElementById('kpiCompletedRides').innerText = `${data.completed_rides} Completados`;
+
+                    document.getElementById('kpiRevenuePYG').innerText = `₲ ${data.total_revenue_pyg.toLocaleString('es-PY')}`;
+                    const revBRL = (data.total_revenue_pyg / data.rates.brl).toFixed(2);
+                    const revUSD = (data.total_revenue_pyg / data.rates.usd).toFixed(2);
+                    document.getElementById('kpiRevenueSub').innerText = `R$ ${revBRL} | $ ${revUSD}`;
+
+                    document.getElementById('kpiCommissionPYG').innerText = `₲ ${data.total_commissions_pyg.toLocaleString('es-PY')}`;
+                    document.getElementById('kpiNetProfitPYG').innerText = `₲ ${data.net_profit_pyg.toLocaleString('es-PY')}`;
+
+                    // Render Choferes
+                    const drvTbody = document.getElementById('driversTbody');
+                    if (data.drivers.length === 0) {
+                        drvTbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">No hay choferes registrados.</td></tr>`;
+                    } else {
+                        drvTbody.innerHTML = data.drivers.map(d => `
+                            <tr>
+                                <td><strong>${d.name}</strong></td>
+                                <td>${d.country === 'PY' ? '🇵🇾 Paraguay' : '🇧🇷 Brasil'}</td>
+                                <td>${d.vehicle_model} <br><small class="text-secondary">${d.license_plate}</small></td>
+                                <td>${d.phone}</td>
+                                <td><span class="badge ${d.is_online ? 'bg-success' : 'bg-secondary'}">${d.is_online ? 'En Línea' : 'Desconectado'}</span></td>
+                            </tr>
+                        `).join('');
+                    }
+
+                    // Render Gastos
+                    const expList = document.getElementById('expensesList');
+                    if (data.expenses.length === 0) {
+                        expList.innerHTML = `<li class="list-group-item bg-transparent text-muted small">No hay gastos registrados.</li>`;
+                    } else {
+                        expList.innerHTML = data.expenses.map(e => `
+                            <li class="list-group-item bg-transparent text-light d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div><strong>${e.description}</strong></div>
+                                    <small class="text-secondary">${e.category} • ${e.date}</small>
+                                </div>
+                                <span class="badge bg-danger">₲ ${e.amount_pyg.toLocaleString('es-PY')}</span>
+                            </li>
+                        `).join('');
+                    }
+                })
+                .catch(err => console.error("Error cargando dashboard:", err));
+        }
+
+        function showFeedback() {
+            const fb = document.getElementById('saveFeedback');
+            fb.style.display = 'block';
+            setTimeout(() => { fb.style.display = 'none'; }, 4000);
+        }
+
+        function getSafeNum(id, defaultVal) {
+            const el = document.getElementById(id);
+            if (!el) return defaultVal;
+            const val = parseFloat(el.value);
+            if (!isNaN(val) && val >= 0) return val;
+            const ph = parseFloat((el.placeholder || '').replace(/[^\d.]/g, ''));
+            if (!isNaN(ph) && ph >= 0) return ph;
+            return defaultVal;
+        }
+
+        function saveRates() {
+            const brl = getSafeNum('rateBRL', 1400);
+            const usd = getSafeNum('rateUSD', 7500);
+
+            fetch('/api/currency/update/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pyg_per_brl: brl, pyg_per_usd: usd })
+            })
+            .then(res => res.json())
+            .then(() => {
+                const elBrl = document.getElementById('rateBRL');
+                const elUsd = document.getElementById('rateUSD');
+                if (elBrl) delete elBrl.dataset.edited;
+                if (elUsd) delete elUsd.dataset.edited;
+                showFeedback();
+                loadDashboard();
+            });
+        }
+
+        function saveFareConfig() {
+            const base = Math.round(getSafeNum('fareBase', 20000));
+            const km = Math.round(getSafeNum('fareKm', 3500));
+            const min = Math.round(getSafeNum('fareMin', 500));
+            const comm = getSafeNum('fareComm', 15);
+
+            fetch('/api/fare/update/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    base_fare_pyg: base,
+                    price_per_km_pyg: km,
+                    price_per_min_pyg: min,
+                    app_commission_percent: comm
+                })
+            })
+            .then(res => res.json())
+            .then(() => {
+                ['fareBase', 'fareKm', 'fareMin', 'fareComm'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) delete el.dataset.edited;
+                });
+                showFeedback();
+                loadDashboard();
+            });
+        }
+
+        function registerDriver(e) {
+            e.preventDefault();
+            const payload = {
+                name: document.getElementById('drvName').value,
+                phone: document.getElementById('drvPhone').value,
+                country: document.getElementById('drvCountry').value,
+                document_id: document.getElementById('drvDoc').value,
+                vehicle_model: document.getElementById('drvModel').value,
+                license_plate: document.getElementById('drvPlate').value
+            };
+
+            fetch('/api/drivers/create/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(() => {
+                alert("¡Conductor registrado con éxito!");
+                bootstrap.Modal.getInstance(document.getElementById('driverModal')).hide();
+                loadDashboard();
+            });
+        }
+
+        function addExpense(e) {
+            e.preventDefault();
+            const descElem = document.getElementById('expDesc');
+            const catElem = document.getElementById('expCat');
+            const amountElem = document.getElementById('expAmount');
+
+            const payload = {
+                description: descElem.value,
+                category: catElem.value,
+                amount_pyg: parseInt(amountElem.value || 0)
+            };
+
+            fetch('/api/expenses/create/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert("¡Gasto registrado con éxito!");
+                descElem.value = '';
+                amountElem.value = '';
+                loadDashboard();
+                loadReport(currentReportPeriod);
+            })
+            .catch(err => {
+                alert("Error al registrar el gasto: " + err);
+            });
+        }
+
+        let currentReportPeriod = 'today';
+
+        function loadReport(period = 'today', btnElement = null) {
+            currentReportPeriod = period;
+
+            if (btnElement) {
+                document.querySelectorAll('#reportFilterBtns button').forEach(b => {
+                    if (b.innerText.includes('📅')) b.classList.remove('active');
+                });
+                btnElement.classList.add('active');
+            }
+
+            fetch(`/api/reports/summary/?period=${period}`)
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('reportPeriodBadge').innerText = data.period_label;
+                    document.getElementById('reportDateRange').innerText = `Rango: ${data.start_date} al ${data.end_date} | Total Viajes: ${data.total_rides}`;
+                    
+                    // Actualizar Tarjetas de Fórmula de Resta de Utilidad
+                    document.getElementById('reportCommVal').innerText = `₲ ${data.total_commissions_pyg.toLocaleString('es-PY')}`;
+                    document.getElementById('reportExpVal').innerText = `₲ ${data.total_expenses_pyg.toLocaleString('es-PY')}`;
+                    document.getElementById('reportNetVal').innerText = `₲ ${data.net_profit_pyg.toLocaleString('es-PY')}`;
+
+                    document.getElementById('reportNetProfit').innerHTML = 
+                        `Ganancia Neta Real: <span class="text-success fw-bold">₲ ${data.net_profit_pyg.toLocaleString('es-PY')}</span> <small class="text-secondary fw-normal">(Comisiones: ₲ ${data.total_commissions_pyg.toLocaleString('es-PY')} - Gastos: ₲ ${data.total_expenses_pyg.toLocaleString('es-PY')})</small>`;
+
+                    // Render Top Routes (Más Solicitadas)
+                    const topTbody = document.getElementById('topRoutesTbody');
+                    if (!data.top_routes || data.top_routes.length === 0) {
+                        topTbody.innerHTML = `<tr><td colspan="4" class="text-muted">No hay itinerarios registrados en este período.</td></tr>`;
+                    } else {
+                        topTbody.innerHTML = data.top_routes.map(r => `
+                            <tr>
+                                <td><strong>${r.origin_address}</strong></td>
+                                <td>${r.destination_address}</td>
+                                <td><span class="badge bg-primary">${r.count} viajes</span></td>
+                                <td class="text-success fw-bold">₲ ${r.total_pyg.toLocaleString('es-PY')}</td>
+                            </tr>
+                        `).join('');
+                    }
+
+                    // Render Least Routes (Menos Solicitadas / Oportunidades)
+                    const leastTbody = document.getElementById('leastRoutesTbody');
+                    if (!data.least_routes || data.least_routes.length === 0) {
+                        leastTbody.innerHTML = `<tr><td colspan="4" class="text-muted">Sin datos de oportunidades aún.</td></tr>`;
+                    } else {
+                        leastTbody.innerHTML = data.least_routes.map(r => `
+                            <tr>
+                                <td><strong>${r.origin_address}</strong></td>
+                                <td>${r.destination_address}</td>
+                                <td><span class="badge bg-secondary">${r.count} viaje(s)</span></td>
+                                <td><span class="badge bg-warning text-dark">💡 Potenciar Itinerario</span></td>
+                            </tr>
+                        `).join('');
+                    }
+
+                    // Render Gastos Operativos del Período
+                    const expTbody = document.getElementById('reportExpensesTbody');
+                    if (!data.expenses_list || data.expenses_list.length === 0) {
+                        expTbody.innerHTML = `<tr><td colspan="4" class="text-muted text-center">No hay gastos registrados en este período.</td></tr>`;
+                    } else {
+                        expTbody.innerHTML = data.expenses_list.map(e => `
+                            <tr>
+                                <td>${e.date}</td>
+                                <td><strong>${e.description}</strong></td>
+                                <td><span class="badge bg-secondary">${e.category}</span></td>
+                                <td class="text-danger fw-bold">- ₲ ${e.amount_pyg.toLocaleString('es-PY')}</td>
+                            </tr>
+                        `).join('');
+                    }
+                })
+                .catch(err => console.error("Error al cargar reporte:", err));
+        }
+
+        function loadDashboardCities() {
+            fetch('/api/locations/')
+                .then(res => res.json())
+                .then(cities => {
+                    const tbody = document.getElementById('dashboardCitiesTbody');
+                    if (!cities || cities.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="3" class="text-muted text-center">No hay ciudades registradas.</td></tr>`;
+                        return;
+                    }
+                    tbody.innerHTML = cities.map(c => `
+                        <tr>
+                            <td><strong>${c.name}</strong></td>
+                            <td><small class="text-info">${c.lat}, ${c.lng}</small></td>
+                            <td class="text-end">
+                                <button class="btn btn-outline-danger btn-sm py-0 px-2" onclick="deleteCityLocation(${c.id})">❌ Eliminar</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                })
+                .catch(err => console.error("Error cargando ciudades:", err));
+        }
+
+        function addCityLocation(e) {
+            e.preventDefault();
+            const name = document.getElementById('cityName').value;
+            const lat = parseFloat(document.getElementById('cityLat').value);
+            const lng = parseFloat(document.getElementById('cityLng').value);
+
+            fetch('/api/locations/create/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, latitude: lat, longitude: lng })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(`¡Ciudad "${name}" registrada con éxito! Ya está disponible en la App del Pasajero.`);
+                document.getElementById('cityName').value = '';
+                document.getElementById('cityLat').value = '';
+                document.getElementById('cityLng').value = '';
+                loadDashboardCities();
+            })
+            .catch(err => alert("Error al registrar ciudad: " + err));
+        }
+
+        function deleteCityLocation(id) {
+            if (!confirm("¿Deseas eliminar esta ciudad de la App?")) return;
+            fetch(`/api/locations/${id}/delete/`, { method: 'POST' })
+                .then(res => res.json())
+                .then(() => {
+                    loadDashboardCities();
+                });
+        }
+
+        function downloadCSVReport() {
+            window.location.href = `/api/reports/export/csv/?period=${currentReportPeriod}`;
+        }
+
+        window.onload = function() {
+            loadDashboard();
+            loadReport('today');
+            loadDashboardCities();
+            // Auto-actualizar automáticamente cada 3 segundos
+            setInterval(() => {
+                loadDashboard();
+                loadReport(currentReportPeriod);
+            }, 3000);
+        };
+    </script>
+</body>
+</html>

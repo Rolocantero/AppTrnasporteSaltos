@@ -1,0 +1,559 @@
+import math
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework import status
+from django.db.models import Sum, Count
+from .models import CurrencyExchange, FareConfig, Driver, Passenger, RideRequest, Expense, CityLocation
+
+def safe_float(val, default):
+    try:
+        if val is None:
+            return default
+        return float(val)
+    except (ValueError, TypeError):
+        return default
+
+def calculate_distance_km(lat1, lon1, lat2, lon2):
+    R = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return round(R * c, 2)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_exchange_rate(request):
+    curr = CurrencyExchange.objects.first()
+    if not curr:
+        curr = CurrencyExchange.objects.create(pyg_per_brl=1400.00, pyg_per_usd=7500.00)
+    return Response({
+        'pyg_per_brl': float(curr.pyg_per_brl),
+        'pyg_per_usd': float(curr.pyg_per_usd),
+        'updated_at': curr.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+    })
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_fare_config(request):
+    fare = FareConfig.objects.filter(is_active=True).first() or FareConfig.objects.create()
+    return Response({
+        'base_fare_pyg': fare.base_fare_pyg,
+        'price_per_km_pyg': fare.price_per_km_pyg,
+        'price_per_min_pyg': fare.price_per_min_pyg,
+        'app_commission_percent': float(fare.app_commission_percent)
+    })
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def update_fare_config(request):
+    data = request.data
+    fare = FareConfig.objects.filter(is_active=True).first() or FareConfig.objects.create()
+    if 'base_fare_pyg' in data and data['base_fare_pyg'] is not None:
+        try:
+            val = int(data['base_fare_pyg'])
+            if val >= 0: fare.base_fare_pyg = val
+        except (ValueError, TypeError): pass
+    if 'price_per_km_pyg' in data and data['price_per_km_pyg'] is not None:
+        try:
+            val = int(data['price_per_km_pyg'])
+            if val >= 0: fare.price_per_km_pyg = val
+        except (ValueError, TypeError): pass
+    if 'price_per_min_pyg' in data and data['price_per_min_pyg'] is not None:
+        try:
+            val = int(data['price_per_min_pyg'])
+            if val >= 0: fare.price_per_min_pyg = val
+        except (ValueError, TypeError): pass
+    if 'app_commission_percent' in data and data['app_commission_percent'] is not None:
+        try:
+            val = float(data['app_commission_percent'])
+            if val >= 0: fare.app_commission_percent = val
+        except (ValueError, TypeError): pass
+    fare.save()
+    return Response({'status': 'updated', 'base': fare.base_fare_pyg, 'km': fare.price_per_km_pyg, 'min': fare.price_per_min_pyg, 'comm': float(fare.app_commission_percent)})
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def update_exchange_rate(request):
+    data = request.data
+    curr = CurrencyExchange.objects.first() or CurrencyExchange.objects.create()
+    if 'pyg_per_brl' in data and data['pyg_per_brl'] is not None:
+        try:
+            val = float(data['pyg_per_brl'])
+            if val > 0: curr.pyg_per_brl = val
+        except (ValueError, TypeError): pass
+    if 'pyg_per_usd' in data and data['pyg_per_usd'] is not None:
+        try:
+            val = float(data['pyg_per_usd'])
+            if val > 0: curr.pyg_per_usd = val
+        except (ValueError, TypeError): pass
+    curr.save()
+    return Response({'status': 'updated', 'brl': float(curr.pyg_per_brl), 'usd': float(curr.pyg_per_usd)})
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def calculate_quote(request):
+    data = request.data
+    o_lat = safe_float(data.get('origin_lat'), -24.0560)
+    o_lng = safe_float(data.get('origin_lng'), -54.3060)
+    d_lat = safe_float(data.get('destination_lat'), -24.0820)
+    d_lng = safe_float(data.get('destination_lng'), -54.2560)
+
+    distance_km = calculate_distance_km(o_lat, o_lng, d_lat, d_lng)
+    est_minutes = max(3, int(distance_km * 2.5))
+
+    fare_cfg = FareConfig.objects.filter(is_active=True).first() or FareConfig.objects.create()
+    total_pyg = int(fare_cfg.base_fare_pyg + (distance_km * fare_cfg.price_per_km_pyg) + (est_minutes * fare_cfg.price_per_min_pyg))
+    
+    curr = CurrencyExchange.objects.first() or CurrencyExchange.objects.create()
+    rate_brl = float(curr.pyg_per_brl) if curr.pyg_per_brl > 0 else 1400.0
+    rate_usd = float(curr.pyg_per_usd) if curr.pyg_per_usd > 0 else 7500.0
+
+    total_brl = round(total_pyg / rate_brl, 2)
+    total_usd = round(total_pyg / rate_usd, 2)
+    comm_pyg = int(total_pyg * (float(fare_cfg.app_commission_percent) / 100.0))
+
+    return Response({
+        'distance_km': distance_km,
+        'estimated_minutes': est_minutes,
+        'total_fare_pyg': total_pyg,
+        'total_fare_brl': total_brl,
+        'total_fare_usd': total_usd,
+        'app_commission_pyg': comm_pyg,
+        'rate_brl': rate_brl,
+        'rate_usd': rate_usd
+    })
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def create_ride_request(request):
+    data = request.data
+    passenger_name = data.get('passenger_name', 'Pasajero Frontera')
+    passenger_phone = data.get('passenger_phone', '+595981000000')
+
+    passenger, _ = Passenger.objects.get_or_create(
+        phone=passenger_phone,
+        defaults={'name': passenger_name}
+    )
+
+    o_lat = safe_float(data.get('origin_lat'), -24.0560)
+    o_lng = safe_float(data.get('origin_lng'), -54.3060)
+    d_lat = safe_float(data.get('destination_lat'), -24.0820)
+    d_lng = safe_float(data.get('destination_lng'), -54.2560)
+
+    distance_km = calculate_distance_km(o_lat, o_lng, d_lat, d_lng)
+    est_minutes = max(3, int(distance_km * 2.5))
+
+    fare_cfg = FareConfig.objects.filter(is_active=True).first() or FareConfig.objects.create()
+    total_pyg = int(fare_cfg.base_fare_pyg + (distance_km * fare_cfg.price_per_km_pyg) + (est_minutes * fare_cfg.price_per_min_pyg))
+    
+    curr = CurrencyExchange.objects.first() or CurrencyExchange.objects.create()
+    rate_brl = float(curr.pyg_per_brl) if curr.pyg_per_brl > 0 else 1400.0
+    rate_usd = float(curr.pyg_per_usd) if curr.pyg_per_usd > 0 else 7500.0
+
+    total_brl = round(total_pyg / rate_brl, 2)
+    total_usd = round(total_pyg / rate_usd, 2)
+    comm_pyg = int(total_pyg * (float(fare_cfg.app_commission_percent) / 100.0))
+
+    ride = RideRequest.objects.create(
+        passenger=passenger,
+        origin_address=data.get('origin_address', 'Saltos del Guairá Centro'),
+        origin_lat=o_lat,
+        origin_lng=o_lng,
+        destination_address=data.get('destination_address', 'Guaíra PR'),
+        destination_lat=d_lat,
+        destination_lng=d_lng,
+        distance_km=distance_km,
+        estimated_minutes=est_minutes,
+        total_fare_pyg=total_pyg,
+        total_fare_brl=total_brl,
+        total_fare_usd=total_usd,
+        app_commission_pyg=comm_pyg,
+        payment_method=data.get('payment_method', 'CASH_PYG'),
+        status='PENDING'
+    )
+
+    return Response({
+        'ride_id': ride.id,
+        'status': ride.status,
+        'origin': ride.origin_address,
+        'destination': ride.destination_address,
+        'fare_pyg': ride.total_fare_pyg,
+        'fare_brl': float(ride.total_fare_brl),
+        'fare_usd': float(ride.total_fare_usd),
+        'payment_method': ride.get_payment_method_display()
+    }, status=status.HTTP_201_CREATED)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def list_pending_rides(request):
+    rides = RideRequest.objects.filter(status='PENDING').order_by('-created_at')
+    data = []
+    for r in rides:
+        data.append({
+            'ride_id': r.id,
+            'passenger': r.passenger.name,
+            'origin': r.origin_address,
+            'destination': r.destination_address,
+            'origin_lat': float(r.origin_lat),
+            'origin_lng': float(r.origin_lng),
+            'destination_lat': float(r.destination_lat),
+            'destination_lng': float(r.destination_lng),
+            'distance_km': float(r.distance_km),
+            'fare_pyg': r.total_fare_pyg,
+            'fare_brl': float(r.total_fare_brl),
+            'fare_usd': float(r.total_fare_usd),
+            'payment_method': r.get_payment_method_display(),
+            'created_at': r.created_at.strftime('%H:%M:%S')
+        })
+    return Response(data)
+
+@api_view(['POST'])
+def accept_ride(request, ride_id):
+    try:
+        ride = RideRequest.objects.get(id=ride_id, status='PENDING')
+    except RideRequest.DoesNotExist:
+        return Response({'error': 'Viaje no disponible'}, status=status.HTTP_404_NOT_FOUND)
+
+    driver_id = request.data.get('driver_id', 1)
+    driver = Driver.objects.filter(id=driver_id).first()
+    if not driver:
+        driver = Driver.objects.create(
+            name="Marcos Benítez",
+            phone="+595983111222",
+            vehicle_model="Toyota Premio",
+            license_plate="AAA 123 PY",
+            is_verified=True,
+            is_online=True
+        )
+
+    ride.driver = driver
+    ride.status = 'ACCEPTED'
+    ride.save()
+
+    return Response({
+        'status': 'ACCEPTED',
+        'driver_name': driver.name,
+        'vehicle': f"{driver.vehicle_model} ({driver.license_plate})",
+        'origin_lat': float(ride.origin_lat),
+        'origin_lng': float(ride.origin_lng),
+        'destination_lat': float(ride.destination_lat),
+        'destination_lng': float(ride.destination_lng),
+        'origin_address': ride.origin_address,
+        'destination_address': ride.destination_address
+    })
+
+@api_view(['GET', 'POST'])
+def update_ride_status(request, ride_id):
+    try:
+        ride = RideRequest.objects.get(id=ride_id)
+    except RideRequest.DoesNotExist:
+        return Response({'error': 'Viaje no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        driver_name = ride.driver.name if ride.driver else None
+        vehicle = f"{ride.driver.vehicle_model} ({ride.driver.license_plate})" if ride.driver else None
+        return Response({
+            'ride_id': ride.id,
+            'status': ride.status,
+            'driver_name': driver_name,
+            'vehicle': vehicle
+        })
+
+    new_status = request.data.get('status')
+    if new_status not in ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']:
+        return Response({'error': 'Estado no válido'}, status=status.HTTP_400_BAD_REQUEST)
+
+    ride.status = new_status
+    ride.save()
+    return Response({'ride_id': ride.id, 'status': ride.status})
+
+@api_view(['GET'])
+def get_dashboard_stats(request):
+    total_rides = RideRequest.objects.count()
+    completed_rides = RideRequest.objects.filter(status='COMPLETED').count()
+
+    total_revenue_pyg = RideRequest.objects.aggregate(Sum('total_fare_pyg'))['total_fare_pyg__sum'] or 0
+    total_commissions_pyg = RideRequest.objects.aggregate(Sum('app_commission_pyg'))['app_commission_pyg__sum'] or 0
+    total_expenses_pyg = Expense.objects.aggregate(Sum('amount_pyg'))['amount_pyg__sum'] or 0
+    
+    net_profit_pyg = total_commissions_pyg - total_expenses_pyg
+
+    curr = CurrencyExchange.objects.first() or CurrencyExchange.objects.create()
+    brl_rate = float(curr.pyg_per_brl)
+    usd_rate = float(curr.pyg_per_usd)
+
+    drivers = list(Driver.objects.values('id', 'name', 'phone', 'country', 'vehicle_model', 'license_plate', 'is_verified', 'is_online'))
+    expenses = list(Expense.objects.values('id', 'description', 'category', 'amount_pyg', 'date'))
+
+    fare = FareConfig.objects.filter(is_active=True).first() or FareConfig.objects.create()
+
+    return Response({
+        'total_rides': total_rides,
+        'completed_rides': completed_rides,
+        'total_revenue_pyg': total_revenue_pyg,
+        'total_commissions_pyg': total_commissions_pyg,
+        'total_expenses_pyg': total_expenses_pyg,
+        'net_profit_pyg': net_profit_pyg,
+        'rates': {
+            'brl': brl_rate,
+            'usd': usd_rate
+        },
+        'fare_config': {
+            'base_fare_pyg': fare.base_fare_pyg,
+            'price_per_km_pyg': fare.price_per_km_pyg,
+            'price_per_min_pyg': fare.price_per_min_pyg,
+            'app_commission_percent': float(fare.app_commission_percent)
+        },
+        'drivers': drivers,
+        'expenses': expenses
+    })
+
+@api_view(['POST'])
+def register_driver(request):
+    data = request.data
+    driver = Driver.objects.create(
+        name=data.get('name'),
+        phone=data.get('phone'),
+        country=data.get('country', 'PY'),
+        document_id=data.get('document_id'),
+        vehicle_model=data.get('vehicle_model'),
+        vehicle_color=data.get('vehicle_color', ''),
+        license_plate=data.get('license_plate'),
+        is_verified=True
+    )
+    return Response({'status': 'success', 'driver_id': driver.id, 'name': driver.name}, status=status.HTTP_201_CREATED)
+
+@api_view(['GET'])
+def list_drivers(request):
+    drivers = Driver.objects.filter(is_verified=True)
+    data = []
+    for d in drivers:
+        data.append({
+            'id': d.id,
+            'name': d.name,
+            'phone': d.phone,
+            'country': d.country,
+            'vehicle_model': d.vehicle_model,
+            'vehicle_color': d.vehicle_color,
+            'license_plate': d.license_plate
+        })
+    return Response(data)
+
+import csv
+from django.http import HttpResponse
+from django.utils import timezone
+from datetime import timedelta
+
+@api_view(['POST'])
+def add_expense(request):
+    data = request.data
+    expense = Expense.objects.create(
+        description=data.get('description'),
+        category=data.get('category', 'Operaciones'),
+        amount_pyg=int(data.get('amount_pyg', 0))
+    )
+    return Response({'status': 'success', 'expense_id': expense.id}, status=status.HTTP_201_CREATED)
+
+@api_view(['GET'])
+def get_accounting_report(request):
+    period = request.GET.get('period', 'today')  # today, week, month, all
+    now = timezone.now()
+    today_date = now.date()
+
+    if period == 'today':
+        start_date = today_date
+        end_date = today_date
+        rides = RideRequest.objects.filter(created_at__date=today_date)
+        expenses = Expense.objects.filter(date=today_date)
+    elif period == 'week':
+        # Lunes a Sábado
+        start_date = today_date - timedelta(days=today_date.weekday())
+        end_date = start_date + timedelta(days=5)
+        rides = RideRequest.objects.filter(created_at__date__gte=start_date, created_at__date__lte=end_date)
+        expenses = Expense.objects.filter(date__gte=start_date, date__lte=end_date)
+    elif period == 'month':
+        start_date = today_date.replace(day=1)
+        end_date = today_date
+        rides = RideRequest.objects.filter(created_at__year=now.year, created_at__month=now.month)
+        expenses = Expense.objects.filter(date__year=now.year, date__month=now.month)
+    else:  # 'all'
+        start_date = None
+        end_date = None
+        rides = RideRequest.objects.all()
+        expenses = Expense.objects.all()
+
+    total_rides = rides.count()
+    completed_rides = rides.filter(status='COMPLETED').count()
+
+    total_revenue_pyg = rides.aggregate(Sum('total_fare_pyg'))['total_fare_pyg__sum'] or 0
+    total_revenue_brl = rides.aggregate(Sum('total_fare_brl'))['total_fare_brl__sum'] or 0
+    total_revenue_usd = rides.aggregate(Sum('total_fare_usd'))['total_fare_usd__sum'] or 0
+    total_commissions_pyg = rides.aggregate(Sum('app_commission_pyg'))['app_commission_pyg__sum'] or 0
+    total_expenses_pyg = expenses.aggregate(Sum('amount_pyg'))['amount_pyg__sum'] or 0
+
+    net_profit_pyg = total_commissions_pyg - total_expenses_pyg
+
+    expenses_list = list(expenses.values('id', 'description', 'category', 'amount_pyg', 'date'))
+
+    # Lugares más frecuentados (Top Rutas)
+    top_routes_qs = rides.values('origin_address', 'destination_address').annotate(
+        count=Count('id'),
+        total_pyg=Sum('total_fare_pyg')
+    ).order_by('-count')[:5]
+
+    top_routes = list(top_routes_qs)
+
+    # Lugares menos frecuentados / Oportunidades de itinerarios
+    least_routes_qs = rides.values('origin_address', 'destination_address').annotate(
+        count=Count('id'),
+        total_pyg=Sum('total_fare_pyg')
+    ).order_by('count')[:5]
+
+    least_routes = list(least_routes_qs)
+
+    return Response({
+        'period': period,
+        'period_label': 'Cierre del Día' if period == 'today' else ('Semanal (Lun - Sáb)' if period == 'week' else ('Cierre del Mes' if period == 'month' else 'Historial Completo')),
+        'start_date': str(start_date) if start_date else 'Inicio',
+        'end_date': str(end_date) if end_date else 'Actualidad',
+        'total_rides': total_rides,
+        'completed_rides': completed_rides,
+        'total_revenue_pyg': total_revenue_pyg,
+        'total_revenue_brl': float(total_revenue_brl or 0),
+        'total_revenue_usd': float(total_revenue_usd or 0),
+        'total_commissions_pyg': total_commissions_pyg,
+        'total_expenses_pyg': total_expenses_pyg,
+        'net_profit_pyg': net_profit_pyg,
+        'expenses_list': expenses_list,
+        'top_routes': top_routes,
+        'least_routes': least_routes
+    })
+
+@api_view(['GET'])
+def export_report_csv(request):
+    period = request.GET.get('period', 'today')
+    now = timezone.now()
+    today_date = now.date()
+
+    if period == 'today':
+        rides = RideRequest.objects.filter(created_at__date=today_date)
+        expenses = Expense.objects.filter(date=today_date)
+        period_title = f"Cierre del Dia ({today_date})"
+    elif period == 'week':
+        start_date = today_date - timedelta(days=today_date.weekday())
+        end_date = start_date + timedelta(days=5)
+        rides = RideRequest.objects.filter(created_at__date__gte=start_date, created_at__date__lte=end_date)
+        expenses = Expense.objects.filter(date__gte=start_date, date__lte=end_date)
+        period_title = f"Reporte Semanal ({start_date} al {end_date})"
+    elif period == 'month':
+        rides = RideRequest.objects.filter(created_at__year=now.year, created_at__month=now.month)
+        expenses = Expense.objects.filter(date__year=now.year, date__month=now.month)
+        period_title = f"Cierre Mensual ({now.strftime('%B %Y')})"
+    else:
+        rides = RideRequest.objects.all()
+        expenses = Expense.objects.all()
+        period_title = "Reporte General Historico"
+
+    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+    response['Content-Disposition'] = f'attachment; filename="Cierre_Caja_{period}_{today_date}.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(["=== REPORTE DE CIERRE DE CAJA Y CONTABILIDAD ==="])
+    writer.writerow(["Periodo:", period_title])
+    writer.writerow(["Fecha de Generacion:", now.strftime('%Y-%m-%d %H:%M:%S')])
+    writer.writerow([])
+
+    tot_pyg = rides.aggregate(Sum('total_fare_pyg'))['total_fare_pyg__sum'] or 0
+    tot_comm = rides.aggregate(Sum('app_commission_pyg'))['app_commission_pyg__sum'] or 0
+    tot_exp = expenses.aggregate(Sum('amount_pyg'))['amount_pyg__sum'] or 0
+    net_profit = tot_comm - tot_exp
+
+    writer.writerow(["RESUMEN FINANCIERO Y BALANCES"])
+    writer.writerow(["Total Viajes Registrados", rides.count()])
+    writer.writerow(["Facturacion Bruta Total (PYG)", f"PYG {tot_pyg}"])
+    writer.writerow(["Comision Bruta App (PYG)", f"PYG {tot_comm}"])
+    writer.writerow(["(-) Gastos Operativos Totales (PYG)", f"PYG {tot_exp}"])
+    writer.writerow(["(=) GANANCIA NETA DEL ADMIN (UTILIDAD REAL)", f"PYG {net_profit}"])
+    writer.writerow([])
+
+    writer.writerow(["DETALLE DE GASTOS OPERATIVOS DEL PERIODO"])
+    writer.writerow(["ID Gasto", "Fecha", "Descripcion", "Categoria", "Monto PYG"])
+    for e in expenses:
+        writer.writerow([
+            e.id,
+            e.date.strftime('%Y-%m-%d'),
+            e.description,
+            e.category,
+            e.amount_pyg
+        ])
+    writer.writerow([])
+
+    writer.writerow(["DETALLE DE VIAJES"])
+    writer.writerow(["ID Viaje", "Fecha/Hora", "Pasajero", "Chofer", "Origen", "Destino", "Distancia (km)", "Monto PYG", "Monto BRL", "Comision PYG", "Metodo Pago", "Estado"])
+
+    for r in rides:
+        writer.writerow([
+            r.id,
+            r.created_at.strftime('%Y-%m-%d %H:%M'),
+            r.passenger.name if r.passenger else "N/A",
+            r.driver.name if r.driver else "Sin Asignar",
+            r.origin_address,
+            r.destination_address,
+            float(r.distance_km),
+            r.total_fare_pyg,
+            float(r.total_fare_brl),
+            r.app_commission_pyg,
+            r.get_payment_method_display(),
+            r.get_status_display()
+        ])
+
+    return response
+
+from django.db import models as db_models
+
+@api_view(['GET'])
+def list_locations(request):
+    locations = CityLocation.objects.filter(is_active=True).order_by('display_order', 'name')
+    data = []
+    for loc in locations:
+        data.append({
+            'id': loc.id,
+            'name': loc.name,
+            'lat': float(loc.latitude),
+            'lng': float(loc.longitude)
+        })
+    return Response(data)
+
+@api_view(['POST'])
+def create_city_location(request):
+    data = request.data
+    name = data.get('name')
+    lat = data.get('latitude')
+    lng = data.get('longitude')
+    if not name or lat is None or lng is None:
+        return Response({'error': 'Todos los campos son obligatorios'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    max_order = CityLocation.objects.aggregate(db_models.Max('display_order'))['display_order__max'] or 0
+    loc = CityLocation.objects.create(
+        name=name,
+        latitude=float(lat),
+        longitude=float(lng),
+        display_order=max_order + 1
+    )
+    return Response({'status': 'created', 'id': loc.id, 'name': loc.name}, status=status.HTTP_201_CREATED)
+
+@api_view(['POST'])
+def delete_city_location(request, location_id):
+    try:
+        loc = CityLocation.objects.get(id=location_id)
+        loc.delete()
+        return Response({'status': 'deleted'})
+    except CityLocation.DoesNotExist:
+        return Response({'error': 'Ubicación no encontrada'}, status=status.HTTP_404_NOT_FOUND)

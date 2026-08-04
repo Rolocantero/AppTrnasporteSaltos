@@ -1,0 +1,11 @@
+*.pyc
+__pycache__/
+db.sqlite3
+.gradle/
+platforms/
+plugins/
+node_modules/
+android_pasajero/platforms/
+android_conductor/platforms/
+android_pasajero/node_modules/
+android_conductor/node_modules/

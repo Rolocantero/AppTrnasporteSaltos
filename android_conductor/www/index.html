@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" >
+    <title>ViajaYa Frontera - Conductor</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        :root {
+            --primary: #00c853;
+            --warning: #ffab00;
+            --danger: #ff1744;
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --text-light: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        #header {
+            background-color: var(--card-bg);
+            padding: 10px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .driver-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #3b82f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .switch-container {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255,255,255,0.06);
+            padding: 5px 10px;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--danger);
+        }
+        .status-dot.online { background: var(--primary); box-shadow: 0 0 8px var(--primary); }
+
+        #map-wrapper {
+            padding: 10px 12px 0 12px;
+        }
+
+        #map {
+            height: 240px;
+            width: 100%;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+            z-index: 1;
+        }
+
+        #earnings-bar {
+            background: var(--card-bg);
+            margin: 10px 12px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-around;
+        }
+
+        .stat-box {
+            text-align: center;
+        }
+        .stat-val {
+            font-weight: 800;
+            font-size: 1.05rem;
+            color: var(--primary);
+        }
+        .stat-lbl {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+        }
+
+        /* Contenedor flotante para viajes en tiempo real */
+        #ridesContainer {
+            padding: 0 12px 20px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+            position: fixed;
+            bottom: 60px;
+            left: 16px;
+            right: 16px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 50vh;
+            overflow-y: auto;
+        }
+
+        .ride-card {
+            background: var(--card-bg);
+            border-radius: 18px;
+            padding: 16px;
+            border: 2px solid var(--primary);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .ride-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .fare-badge {
+            background: rgba(0,200,83,0.15);
+            color: var(--primary);
+            font-weight: 800;
+            font-size: 1.2rem;
+            padding: 4px 10px;
+            border-radius: 10px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-accept {
+            background: var(--primary);
+            color: #000;
+            font-weight: 800;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            flex: 2;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .btn-reject {
+            background: rgba(255,23,68,0.15);
+            color: var(--danger);
+            border: 1px solid var(--danger);
+            font-weight: 700;
+            padding: 12px;
+            border-radius: 12px;
+            flex: 1;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <div class="driver-info" style="flex: 1; margin-right: 8px;">
+            <div class="avatar" id="driverAvatar">🚖</div>
+            <div style="flex: 1;">
+                <select id="driverSelect" onchange="changeActiveDriver()" style="background: rgba(255,255,255,0.08); color: #fff; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.85rem; padding: 3px 6px; width: 100%; outline: none;">
+                    <option value="1">Marcos Benítez (Toyota Premio)</option>
+                </select>
+                <div style="font-size: 0.7rem; color: #38bdf8; margin-top: 2px; cursor: pointer;" onclick="openNewDriverModal()">+ Registrar Mi Vehículo</div>
+            </div>
+        </div>
+        <div style="display: flex; gap: 6px; align-items: center;">
+            <div class="switch-container" onclick="toggleOnline()">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText" style="font-size: 0.8rem; font-weight: 600;">OFF</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Registrar Nuevo Chofer / Vehículo -->
+    <div id="newDriverModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); z-index:9999; padding:20px; align-items:center; justify-content:center;">
+        <div style="background:#1e293b; border:1px solid #334155; border-radius:14px; padding:20px; width:100%; max-width:400px; color:#fff;">
+            <h3 style="margin-bottom:12px; color:#00c853; font-size:1.1rem;">🚗 Registrar Mi Vehículo y Perfil</h3>
+            <form onsubmit="saveNewDriver(event)">
+                <input type="text" id="newDrvName" placeholder="Tu Nombre Completo" required style="width:100%; padding:10px; margin-bottom:8px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff;">
+                <input type="text" id="newDrvPhone" placeholder="Teléfono / WhatsApp" required style="width:100%; padding:10px; margin-bottom:8px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff;">
+                <input type="text" id="newDrvModel" placeholder="Modelo Vehículo (Ej. Toyota Allion)" required style="width:100%; padding:10px; margin-bottom:8px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff;">
+                <input type="text" id="newDrvPlate" placeholder="Número de Chapa / Placa" required style="width:100%; padding:10px; margin-bottom:12px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff;">
+                <div style="display:flex; gap:10px;">
+                    <button type="button" onclick="closeNewDriverModal()" style="flex:1; padding:10px; background:transparent; border:1px solid #94a3b8; color:#fff; border-radius:8px; cursor:pointer;">Cancelar</button>
+                    <button type="submit" style="flex:1; padding:10px; background:#00c853; border:none; color:#000; font-weight:bold; border-radius:8px; cursor:pointer;">Guardar y Activar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="map-wrapper">
+        <div id="map"></div>
+    </div>
+
+    <div id="earnings-bar">
+        <div class="stat-box">
+            <div class="stat-val" id="totalPYG">₲ 0</div>
+            <div class="stat-lbl">Ganancia Hoy (₲)</div>
+        </div>
+        <div style="width: 1px; background: var(--border-color);"></div>
+        <div class="stat-box">
+            <div class="stat-val" id="totalBRL" style="color: #2979ff;">R$ 0.00</div>
+            <div class="stat-lbl">Ganancia Hoy (R$)</div>
+        </div>
+        <div style="width: 1px; background: var(--border-color);"></div>
+        <div class="stat-box">
+            <div class="stat-val" id="completedCount" style="color: #f59e0b;">0</div>
+            <div class="stat-lbl">Viajes Completados</div>
+        </div>
+    </div>
+
+    <div id="ridesContainer"></div>
+
+    <script>
+        const SALTOS_COORDS = [-24.056, -54.306];
+        let map;
+        let isOnline = false;
+        let pollInterval = null;
+        let knownRides = new Set();
+        let totalEarningsPYG = 0;
+        let totalEarningsBRL = 0;
+        let completedCount = 0;
+        let activeRideId = null;
+        let currentDriverId = localStorage.getItem('activeDriverId') || 1;
+
+        function loadDriversList() {
+            fetch('http://192.168.0.109:8000/api/drivers/list/')
+                .then(res => res.json())
+                .then(drivers => {
+                    if (!drivers || drivers.length === 0) return;
+                    const select = document.getElementById('driverSelect');
+                    select.innerHTML = drivers.map(d => 
+                        `<option value="${d.id}" ${d.id == currentDriverId ? 'selected' : ''}>${d.name} (${d.vehicle_model} - ${d.license_plate})</option>`
+                    ).join('');
+
+                    const activeDrv = drivers.find(d => d.id == currentDriverId) || drivers[0];
+                    currentDriverId = activeDrv.id;
+                    localStorage.setItem('activeDriverId', currentDriverId);
+                    updateCarMarkerName(activeDrv.name);
+                })
+                .catch(err => console.log("Cargando perfil chofer..."));
+        }
+
+        function changeActiveDriver() {
+            currentDriverId = document.getElementById('driverSelect').value;
+            localStorage.setItem('activeDriverId', currentDriverId);
+            const selectText = document.getElementById('driverSelect').options[document.getElementById('driverSelect').selectedIndex].text;
+            updateCarMarkerName(selectText.split('(')[0]);
+        }
+
+        function openNewDriverModal() {
+            document.getElementById('newDriverModal').style.display = 'flex';
+        }
+
+        function closeNewDriverModal() {
+            document.getElementById('newDriverModal').style.display = 'none';
+        }
+
+        function saveNewDriver(e) {
+            e.preventDefault();
+            const payload = {
+                name: document.getElementById('newDrvName').value,
+                phone: document.getElementById('newDrvPhone').value,
+                vehicle_model: document.getElementById('newDrvModel').value,
+                license_plate: document.getElementById('newDrvPlate').value,
+                document_id: 'REG-APP-' + Date.now(),
+                country: 'PY'
+            };
+
+            fetch('http://192.168.0.109:8000/api/drivers/create/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(`¡Bienvenido ${payload.name}! Tu vehículo ha sido registrado exitosamente.`);
+                currentDriverId = data.driver_id;
+                localStorage.setItem('activeDriverId', currentDriverId);
+                closeNewDriverModal();
+                loadDriversList();
+            })
+            .catch(err => alert("Error al registrar vehículo: " + err));
+        }
+
+        let carMarker = null;
+        function updateCarMarkerName(name) {
+            if (carMarker && map) {
+                const carIcon = L.divIcon({
+                    className: 'custom-car',
+                    html: `<div style="background:#00c853; color:#000; padding:6px 10px; border-radius:20px; font-weight:bold; font-size:12px; border:2px solid white; box-shadow:0 4px 10px rgba(0,0,0,0.5);">🚖 ${name}</div>`
+                });
+                carMarker.setIcon(carIcon);
+            }
+        }
+
+        function playAlertSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+                osc.frequency.setValueAtTime(880.00, ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.4);
+            } catch(e) {}
+        }
+
+        function initMap() {
+            map = L.map('map', { zoomControl: false }).setView(SALTOS_COORDS, 13);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19
+            }).addTo(map);
+
+            const carIcon = L.divIcon({
+                className: 'custom-car',
+                html: `<div style="background:#00c853; color:#000; padding:6px 10px; border-radius:20px; font-weight:bold; font-size:12px; border:2px solid white; box-shadow:0 4px 10px rgba(0,0,0,0.5);">🚖 Chofer</div>`
+            });
+
+            carMarker = L.marker(SALTOS_COORDS, { icon: carIcon }).addTo(map);
+            loadDriversList();
+        }
+
+        function toggleOnline() {
+            isOnline = !isOnline;
+            const dot = document.getElementById('statusDot');
+            const txt = document.getElementById('statusText');
+
+            if (isOnline) {
+                dot.classList.add('online');
+                txt.innerText = "EN LÍNEA";
+                txt.style.color = "#00c853";
+                
+                // Iniciar polling para buscar viajes REALES pedidos desde el backend
+                fetchPendingRides();
+                pollInterval = setInterval(fetchPendingRides, 3000);
+            } else {
+                dot.classList.remove('online');
+                txt.innerText = "DESCONECTADO";
+                txt.style.color = "#ffffff";
+                if (pollInterval) clearInterval(pollInterval);
+                document.getElementById('ridesContainer').innerHTML = '';
+                knownRides.clear();
+                activeRideId = null;
+            }
+        }
+
+        function fetchPendingRides() {
+            if (!isOnline) return;
+            if (activeRideId !== null) return; // Si hay un viaje activo en curso, NO sobreescribir la tarjeta
+
+            fetch('http://192.168.0.109:8000/api/rides/pending/')
+                .then(res => res.json())
+                .then(rides => {
+                    const container = document.getElementById('ridesContainer');
+                    if (!rides || rides.length === 0) {
+                        container.innerHTML = '';
+                        knownRides.clear();
+                        return;
+                    }
+
+                    // Renderizar TODOS los viajes pedidos en tarjetas separadas PRIMERO
+                    container.innerHTML = rides.map(r => `
+                        <div class="ride-card" id="card-ride-${r.ride_id}">
+                            <div class="ride-header">
+                                <div>
+                                    <div style="font-weight: 700; font-size: 1.05rem; color: #00c853;">🔔 SOLICITUD DE VIAJE #${r.ride_id}</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-muted);">Pasajero: ${r.passenger} • Hora: ${r.created_at}</div>
+                                </div>
+                                <div class="fare-badge">₲ ${(r.fare_pyg || 0).toLocaleString('es-PY')}</div>
+                            </div>
+
+                            <div style="font-size: 0.85rem; display: flex; flex-direction: column; gap: 6px;">
+                                <div>📍 <strong>Origen:</strong> ${r.origin}</div>
+                                <div>🏁 <strong>Destino:</strong> ${r.destination}</div>
+                                <div>💵 <strong>Pago:</strong> ${r.payment_method} (R$ ${r.fare_brl} | $ ${r.fare_usd})</div>
+                                <div>📏 <strong>Distancia:</strong> ${r.distance_km} km</div>
+                            </div>
+
+                            <div class="btn-group">
+                                <button class="btn-reject" onclick="rejectRideCard(${r.ride_id})">Ignorar</button>
+                                <button class="btn-accept" onclick="acceptRide(${r.ride_id}, ${r.fare_pyg}, ${r.fare_brl})">✅ ACEPTAR VIAJE</button>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    // Verificar si hay viajes nuevos para sonar la alerta sin bloquear la interfaz
+                    let isNew = false;
+                    rides.forEach(r => {
+                        if (!knownRides.has(r.ride_id)) {
+                            knownRides.add(r.ride_id);
+                            isNew = true;
+                        }
+                    });
+
+                    if (isNew) {
+                        try { playAlertSound(); } catch(e) {}
+                    }
+                })
+                .catch(err => console.error("Error al buscar viajes:", err));
+        }
+
+        let activePolyline = null;
+        let originMarker = null;
+        let destinationMarker = null;
+
+        function drawRouteOnMap(oLat, oLng, dLat, dLng, originName, destName) {
+            clearRouteOnMap();
+
+            if (!map) return;
+
+            const originIcon = L.divIcon({
+                className: 'custom-div-icon',
+                html: "<div style='background-color:#00c853; width:22px; height:22px; border-radius:50%; border:3px solid white; box-shadow:0 0 10px #00c853; display:flex; align-items:center; justify-content:center; color:black; font-weight:bold; font-size:11px;'>A</div>",
+                iconSize: [22, 22],
+                iconAnchor: [11, 11]
+            });
+
+            const destIcon = L.divIcon({
+                className: 'custom-div-icon',
+                html: "<div style='background-color:#ff1744; width:22px; height:22px; border-radius:50%; border:3px solid white; box-shadow:0 0 10px #ff1744; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; font-size:11px;'>B</div>",
+                iconSize: [22, 22],
+                iconAnchor: [11, 11]
+            });
+
+            originMarker = L.marker([oLat, oLng], { icon: originIcon }).addTo(map)
+                .bindPopup(`<b>📍 Origen (Pasajero):</b><br>${originName}`).openPopup();
+
+            destinationMarker = L.marker([dLat, dLng], { icon: destIcon }).addTo(map)
+                .bindPopup(`<b>🏁 Destino:</b><br>${destName}`);
+
+            // Dibujar la línea de ruta brillante estilo Uber
+            activePolyline = L.polyline([
+                SALTOS_COORDS,
+                [oLat, oLng],
+                [dLat, dLng]
+            ], {
+                color: '#38bdf8',
+                weight: 6,
+                opacity: 0.9,
+                dashArray: '8, 8'
+            }).addTo(map);
+
+            // Enfocar automáticamente el mapa sobre la ruta completa
+            const bounds = L.latLngBounds([SALTOS_COORDS, [oLat, oLng], [dLat, dLng]]);
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
+
+        function clearRouteOnMap() {
+            if (activePolyline) { map.removeLayer(activePolyline); activePolyline = null; }
+            if (originMarker) { map.removeLayer(originMarker); originMarker = null; }
+            if (destinationMarker) { map.removeLayer(destinationMarker); destinationMarker = null; }
+            if (map) map.setView(SALTOS_COORDS, 13);
+        }
+
+        function navigateToPickup(oLat, oLng) {
+            const url = `https://www.google.com/maps/dir/?api=1&destination=${oLat},${oLng}&travelmode=driving`;
+            window.open(url, '_blank');
+        }
+
+        function navigateFullRoute(oLat, oLng, dLat, dLng) {
+            const url = `https://www.google.com/maps/dir/?api=1&origin=${oLat},${oLng}&destination=${dLat},${dLng}&travelmode=driving`;
+            window.open(url, '_blank');
+        }
+
+        function acceptRide(rideId, farePYG, fareBRL) {
+            activeRideId = rideId;
+            fetch(`/api/rides/${rideId}/accept/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ driver_id: 1 })
+            })
+            .then(res => res.json())
+            .then(data => {
+                const oLat = data.origin_lat || -24.056;
+                const oLng = data.origin_lng || -54.306;
+                const dLat = data.destination_lat || -24.082;
+                const dLng = data.destination_lng || -54.256;
+
+                // Dibujar la ruta gráfica en el mapa del chofer
+                drawRouteOnMap(oLat, oLng, dLat, dLng, data.origin_address || 'Origen', data.destination_address || 'Destino');
+
+                const card = document.getElementById(`card-ride-${rideId}`);
+                if (card) {
+                    card.style.borderColor = '#00c853';
+                    card.innerHTML = `
+                        <div class="ride-header">
+                            <div>
+                                <div style="font-weight: 700; font-size: 1.05rem; color: #00c853;">🚖 VIAJE EN CURSO #${rideId}</div>
+                                <div style="font-size: 0.8rem; color: #94a3b8;">Navegación activa en mapa</div>
+                            </div>
+                            <div class="fare-badge">₲ ${farePYG.toLocaleString('es-PY')}</div>
+                        </div>
+
+                        <!-- Botones de Navegación GPS Externa con Coordenadas Exactas -->
+                        <div style="display: flex; flex-direction: column; gap: 6px; margin: 10px 0;">
+                            <div style="font-size: 0.75rem; color: #38bdf8; font-weight: 600;">🗺️ ABRIR EN GOOGLE MAPS GPS:</div>
+                            <div style="display: flex; gap: 6px;">
+                                <button class="btn-accept" style="background: #ea4335; color: #fff; font-size: 0.78rem; padding: 7px 8px; flex: 1;" onclick="navigateToPickup(${oLat}, ${oLng})">📍 Ir a Buscar (Pasajero)</button>
+                                <button class="btn-accept" style="background: #2563eb; color: #fff; font-size: 0.78rem; padding: 7px 8px; flex: 1;" onclick="navigateFullRoute(${oLat}, ${oLng}, ${dLat}, ${dLng})">🏁 Ruta (Origen ➔ Destino)</button>
+                            </div>
+                        </div>
+
+                        <div class="btn-group">
+                            <button class="btn-accept" style="background: #2979ff; color: #fff;" onclick="updateStatus(${rideId}, 'IN_PROGRESS', this)">▶️ INICIAR VIAJE</button>
+                            <button class="btn-accept" style="background: #00c853; color: #000;" onclick="completeRide(${rideId}, ${farePYG}, ${fareBRL})">🏁 FINALIZAR Y COBRAR</button>
+                        </div>
+                    `;
+                }
+            })
+            .catch(err => {
+                activeRideId = null;
+                alert("Error al aceptar viaje: " + err);
+            });
+        }
+
+        function updateStatus(rideId, statusStr, btn) {
+            fetch(`/api/rides/${rideId}/status/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: statusStr })
+            })
+            .then(res => res.json())
+            .then(() => {
+                if (btn) {
+                    btn.innerText = '✅ EN VIAJE';
+                    btn.disabled = true;
+                }
+            });
+        }
+
+        function completeRide(rideId, farePYG, fareBRL) {
+            fetch(`/api/rides/${rideId}/status/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'COMPLETED' })
+            })
+            .then(res => res.json())
+            .then(data => {
+                activeRideId = null;
+                clearRouteOnMap();
+                alert(`🎉 ¡Viaje #${rideId} completado y cobrado con éxito!`);
+                
+                // Actualizar ganancias del conductor
+                totalEarningsPYG += farePYG;
+                totalEarningsBRL += fareBRL;
+                completedCount++;
+
+                document.getElementById('totalPYG').innerText = `₲ ${totalEarningsPYG.toLocaleString('es-PY')}`;
+                document.getElementById('totalBRL').innerText = `R$ ${totalEarningsBRL.toFixed(2)}`;
+                document.getElementById('completedCount').innerText = completedCount;
+
+                // Remover la tarjeta del viaje completado
+                const card = document.getElementById(`card-ride-${rideId}`);
+                if (card) card.remove();
+            })
+            .catch(err => alert("Error al completar el viaje: " + err));
+        }
+
+        function rejectRideCard(rideId) {
+            const card = document.getElementById(`card-ride-${rideId}`);
+            if (card) card.remove();
+        }
+
+        window.onload = function() {
+            initMap();
+            toggleOnline();
+        };
+    </script>
+</body>
+</html>
