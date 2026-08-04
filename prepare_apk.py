@@ -6,9 +6,9 @@ def prepare_apk_files():
         with open('frontend_passenger/index.html', 'r', encoding='utf-8') as f:
             pass_html = f.read()
         
-        pass_html_apk = pass_html.replace("fetch('/api/", "fetch('http://192.168.0.109:8000/api/")
-        pass_html_apk = pass_html_apk.replace('href="/driver/"', 'href="http://192.168.0.109:8000/driver/"')
-        pass_html_apk = pass_html_apk.replace('href="/dashboard/"', 'href="http://192.168.0.109:8000/dashboard/"')
+        pass_html_apk = pass_html.replace("fetch('/api/", "fetch('https://apptrnasportesaltos.onrender.com/api/")
+        pass_html_apk = pass_html_apk.replace('href="/driver/"', 'href="https://apptrnasportesaltos.onrender.com/driver/"')
+        pass_html_apk = pass_html_apk.replace('href="/dashboard/"', 'href="https://apptrnasportesaltos.onrender.com/dashboard/"')
         pass_html_apk = pass_html_apk.replace('href="/manifest_passenger.json"', '')
 
         os.makedirs('android_pasajero/www', exist_ok=True)
@@ -21,8 +21,8 @@ def prepare_apk_files():
         with open('frontend_driver/index.html', 'r', encoding='utf-8') as f:
             drv_html = f.read()
 
-        drv_html_apk = drv_html.replace("fetch('/api/", "fetch('http://192.168.0.109:8000/api/")
-        drv_html_apk = drv_html_apk.replace('href="/dashboard/"', 'href="http://192.168.0.109:8000/dashboard/"')
+        drv_html_apk = drv_html.replace("fetch('/api/", "fetch('https://apptrnasportesaltos.onrender.com/api/")
+        drv_html_apk = drv_html_apk.replace('href="/dashboard/"', 'href="https://apptrnasportesaltos.onrender.com/dashboard/"')
         drv_html_apk = drv_html_apk.replace('href="/manifest_driver.json"', '')
 
         os.makedirs('android_conductor/www', exist_ok=True)

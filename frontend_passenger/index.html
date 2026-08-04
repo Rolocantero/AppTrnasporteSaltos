@@ -264,9 +264,9 @@
     </div>
 
     <div id="bottom-sheet">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 0.85rem; color: var(--text-muted);">Selecciona Origen y Destino</span>
-            <button class="btn-gps" onclick="useCurrentGPS()">🎯 Mi Ubicación GPS</button>
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+            <button class="btn-gps" onclick="useCurrentGPS()" style="flex:1;">🎯 Mi Ubicación GPS</button>
+            <button class="btn-gps" onclick="enableMapPickMode()" style="flex:1; background: rgba(0, 200, 83, 0.15); color: #00c853; border-color: rgba(0, 200, 83, 0.4);">📌 Tocar Destino en Mapa</button>
         </div>
 
         <div class="input-group">
@@ -361,6 +361,8 @@
                 .catch(err => console.log("Cargando ubicaciones estándar..."));
         }
 
+        let isPickingMapDest = false;
+
         function initMap() {
             // Mapa centrado en Saltos del Guairá (-24.056, -54.306)
             map = L.map('map', { zoomControl: false }).setView([-24.056, -54.306], 12);
@@ -370,7 +372,37 @@
                 attribution: '© OpenStreetMap'
             }).addTo(map);
 
+            map.on('click', function(e) {
+                setCustomMapDestination(e.latlng.lat, e.latlng.lng);
+            });
+
             loadDynamicLocations();
+            recalculateQuote();
+        }
+
+        function enableMapPickMode() {
+            alert("📍 Toca cualquier lugar en el mapa (calle, barrio o punto) para fijarlo como tu destino de viaje.");
+            const mapElem = document.getElementById('map');
+            if (mapElem) mapElem.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function setCustomMapDestination(lat, lng) {
+            const destSelect = document.getElementById('destSelect');
+            const customName = `Ubicación Seleccionada (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+
+            // Buscar si ya existe la opción de mapa o crear una nueva
+            let customOpt = document.getElementById('customMapDestOpt');
+            if (!customOpt) {
+                customOpt = document.createElement('option');
+                customOpt.id = 'customMapDestOpt';
+                destSelect.insertBefore(customOpt, destSelect.firstChild);
+            }
+
+            customOpt.value = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+            customOpt.setAttribute('data-name', customName);
+            customOpt.innerText = `📌 Destino: ${customName}`;
+            customOpt.selected = true;
+
             recalculateQuote();
         }
 

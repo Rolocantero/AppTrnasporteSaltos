@@ -278,7 +278,7 @@
         let currentDriverId = localStorage.getItem('activeDriverId') || 1;
 
         function loadDriversList() {
-            fetch('http://192.168.0.109:8000/api/drivers/list/')
+            fetch('https://apptrnasportesaltos.onrender.com/api/drivers/list/')
                 .then(res => res.json())
                 .then(drivers => {
                     if (!drivers || drivers.length === 0) return;
@@ -321,7 +321,7 @@
                 country: 'PY'
             };
 
-            fetch('http://192.168.0.109:8000/api/drivers/create/', {
+            fetch('https://apptrnasportesaltos.onrender.com/api/drivers/create/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -407,7 +407,7 @@
             if (!isOnline) return;
             if (activeRideId !== null) return; // Si hay un viaje activo en curso, NO sobreescribir la tarjeta
 
-            fetch('http://192.168.0.109:8000/api/rides/pending/')
+            fetch('https://apptrnasportesaltos.onrender.com/api/rides/pending/')
                 .then(res => res.json())
                 .then(rides => {
                     const container = document.getElementById('ridesContainer');

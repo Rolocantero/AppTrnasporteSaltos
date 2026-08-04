@@ -7,8 +7,8 @@
     <author email="dev@cordova.apache.org" href="https://cordova.apache.org">
         Apache Cordova Team
     </author>
-    <content src="http://192.168.0.109:8000/driver/" />
-    <allow-navigation href="http://192.168.0.109:8000/*" />
+    <content src="https://apptrnasportesaltos.onrender.com/driver/" />
+    <allow-navigation href="https://apptrnasportesaltos.onrender.com/*" />
     <allow-navigation href="http://*/*" />
     <allow-navigation href="https://*/*" />
     <allow-intent href="http://*/*" />
