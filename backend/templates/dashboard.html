@@ -155,15 +155,16 @@
                         <table class="table table-dark table-striped align-middle" id="driversTable">
                             <thead>
                                 <tr>
-                                    <th>Nombre</th>
-                                    <th>País</th>
+                                    <th>Conductor</th>
                                     <th>Vehículo / Chapa</th>
-                                    <th>Teléfono</th>
-                                    <th>Estado</th>
+                                    <th>Viajes</th>
+                                    <th>Km Recorridos</th>
+                                    <th>Ganancias (₲)</th>
+                                    <th>Mantenimiento</th>
                                 </tr>
                             </thead>
                             <tbody id="driversTbody">
-                                <tr><td colspan="5" class="text-center text-muted">Cargando flota...</td></tr>
+                                <tr><td colspan="6" class="text-center text-muted">Cargando flota...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -474,21 +475,35 @@
                     document.getElementById('kpiCommissionPYG').innerText = `₲ ${data.total_commissions_pyg.toLocaleString('es-PY')}`;
                     document.getElementById('kpiNetProfitPYG').innerText = `₲ ${data.net_profit_pyg.toLocaleString('es-PY')}`;
 
-                    // Render Choferes
-                    const drvTbody = document.getElementById('driversTbody');
-                    if (data.drivers.length === 0) {
-                        drvTbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">No hay choferes registrados.</td></tr>`;
-                    } else {
-                        drvTbody.innerHTML = data.drivers.map(d => `
-                            <tr>
-                                <td><strong>${d.name}</strong></td>
-                                <td>${d.country === 'PY' ? '🇵🇾 Paraguay' : '🇧🇷 Brasil'}</td>
-                                <td>${d.vehicle_model} <br><small class="text-secondary">${d.license_plate}</small></td>
-                                <td>${d.phone}</td>
-                                <td><span class="badge ${d.is_online ? 'bg-success' : 'bg-secondary'}">${d.is_online ? 'En Línea' : 'Desconectado'}</span></td>
-                            </tr>
-                        `).join('');
-                    }
+                    // Render Choferes con Fleet API
+                    fetch('/api/admin/fleet/')
+                        .then(res => res.json())
+                        .then(fleet => {
+                            const drvTbody = document.getElementById('driversTbody');
+                            if (!fleet || fleet.length === 0) {
+                                drvTbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No hay choferes registrados.</td></tr>`;
+                            } else {
+                                drvTbody.innerHTML = fleet.map(d => {
+                                    let maintBadge = '<span class="badge bg-success">🟢 Al Día</span>';
+                                    if (d.km_since_service >= 8000) {
+                                        maintBadge = '<span class="badge bg-danger">🔴 Service URGENTE</span>';
+                                    } else if (d.km_since_service >= 5000) {
+                                        maintBadge = '<span class="badge bg-warning text-dark">🟡 Próximo Service</span>';
+                                    }
+                                    return `
+                                        <tr>
+                                            <td><strong>${d.name}</strong><br><small class="text-secondary">📱 ${d.phone}</small></td>
+                                            <td>${d.vehicle}<br><small class="text-info">${d.license_plate}</small></td>
+                                            <td><span class="badge bg-primary">${d.completed_rides} viajes</span></td>
+                                            <td><strong>${d.total_km_driven} km</strong><br><small class="text-secondary">${d.km_since_service} km desde service</small></td>
+                                            <td class="text-success fw-bold">₲ ${d.total_earnings_pyg.toLocaleString('es-PY')}</td>
+                                            <td>${maintBadge}</td>
+                                        </tr>
+                                    `;
+                                }).join('');
+                            }
+                        })
+                        .catch(err => console.log("Error cargando flota:", err));
 
                     // Render Gastos
                     const expList = document.getElementById('expensesList');

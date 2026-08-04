@@ -20,4 +20,8 @@ urlpatterns = [
     path('locations/', views.list_locations, name='list_locations'),
     path('locations/create/', views.create_city_location, name='create_city_location'),
     path('locations/<int:location_id>/delete/', views.delete_city_location, name='delete_city_location'),
+    path('driver/login/', views.driver_login, name='driver_login'),
+    path('driver/stats/<int:driver_id>/', views.driver_stats, name='driver_stats'),
+    path('admin/fleet/', views.admin_fleet_stats, name='admin_fleet_stats'),
+    path('driver/<int:driver_id>/service/reset/', views.reset_driver_service, name='reset_driver_service'),
 ]

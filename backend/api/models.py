@@ -58,6 +58,10 @@ class Driver(models.Model):
     vehicle_color = models.CharField(max_length=50, verbose_name="Color")
     license_plate = models.CharField(max_length=20, verbose_name="Chapa / Placa")
 
+    pin_code = models.CharField(max_length=10, default="1234", verbose_name="PIN Acceso (4 dígitos)")
+    total_km_driven = models.FloatField(default=0.0, verbose_name="Kilometraje Acumulado (km)")
+    last_service_km = models.FloatField(default=0.0, verbose_name="Km del Último Mantenimiento")
+
     is_verified = models.BooleanField(default=True, verbose_name="Verificado por Admin")
     is_online = models.BooleanField(default=False, verbose_name="En Línea")
     

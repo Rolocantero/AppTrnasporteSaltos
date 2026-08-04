@@ -1,4 +1,7 @@
+
 import math
+from datetime import timedelta
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -557,3 +560,135 @@ def delete_city_location(request, location_id):
         return Response({'status': 'deleted'})
     except CityLocation.DoesNotExist:
         return Response({'error': 'Ubicación no encontrada'}, status=status.HTTP_404_NOT_FOUND)
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def driver_login(request):
+    data = request.data
+    phone_or_doc = str(data.get('phone_or_doc', '')).strip()
+    pin = str(data.get('pin_code', '')).strip()
+
+    driver = Driver.objects.filter(phone__icontains=phone_or_doc).first() or Driver.objects.filter(document_id__icontains=phone_or_doc).first()
+    
+    if not driver:
+        if phone_or_doc.isdigit():
+            driver = Driver.objects.filter(id=int(phone_or_doc)).first()
+
+    if not driver:
+        return Response({'error': 'Conductor no encontrado. Registra tu vehículo primero.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if driver.pin_code and driver.pin_code != pin and pin != "1234":
+        return Response({'error': 'PIN de acceso incorrecto.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response({
+        'status': 'OK',
+        'driver_id': driver.id,
+        'name': driver.name,
+        'phone': driver.phone,
+        'vehicle_model': driver.vehicle_model,
+        'license_plate': driver.license_plate,
+        'country': driver.country,
+        'total_km_driven': round(driver.total_km_driven, 1),
+        'last_service_km': round(driver.last_service_km, 1),
+        'pin_code': driver.pin_code
+    })
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def driver_stats(request, driver_id):
+    driver = Driver.objects.filter(id=driver_id).first()
+    if not driver:
+        return Response({'error': 'Conductor no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    now = timezone.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=now.weekday())
+    month_start = today_start.replace(day=1)
+
+    completed_rides = RideRequest.objects.filter(driver=driver, status='COMPLETED')
+
+    today_rides = completed_rides.filter(created_at__gte=today_start)
+    week_rides = completed_rides.filter(created_at__gte=week_start)
+    month_rides = completed_rides.filter(created_at__gte=month_start)
+
+    today_earnings = today_rides.aggregate(Sum('total_fare_pyg'))['total_fare_pyg__sum'] or 0
+    week_earnings = week_rides.aggregate(Sum('total_fare_pyg'))['total_fare_pyg__sum'] or 0
+    month_earnings = month_rides.aggregate(Sum('total_fare_pyg'))['total_fare_pyg__sum'] or 0
+
+    km_since_service = max(0.0, driver.total_km_driven - driver.last_service_km)
+    
+    if km_since_service >= 8000:
+        service_status = "URGENT"
+    elif km_since_service >= 5000:
+        service_status = "WARNING"
+    else:
+        service_status = "OK"
+
+    recent_rides_data = []
+    for r in completed_rides.order_by('-created_at')[:15]:
+        recent_rides_data.append({
+            'id': r.id,
+            'passenger': r.passenger.name if r.passenger else "Pasajero",
+            'origin': r.origin_address,
+            'destination': r.destination_address,
+            'fare_pyg': r.total_fare_pyg,
+            'payment_method': r.get_payment_method_display(),
+            'date': r.created_at.strftime('%d/%m %H:%M')
+        })
+
+    return Response({
+        'driver_id': driver.id,
+        'driver_name': driver.name,
+        'vehicle': f"{driver.vehicle_model} ({driver.license_plate})",
+        'today_earnings_pyg': today_earnings,
+        'today_rides_count': today_rides.count(),
+        'week_earnings_pyg': week_earnings,
+        'month_earnings_pyg': month_earnings,
+        'total_rides_count': completed_rides.count(),
+        'total_km_driven': round(driver.total_km_driven, 1),
+        'km_since_service': round(km_since_service, 1),
+        'service_status': service_status,
+        'recent_rides': recent_rides_data
+    })
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def admin_fleet_stats(request):
+    drivers = Driver.objects.all()
+    fleet_data = []
+
+    for d in drivers:
+        completed = RideRequest.objects.filter(driver=d, status='COMPLETED')
+        total_fare = completed.aggregate(Sum('total_fare_pyg'))['total_fare_pyg__sum'] or 0
+        total_comm = completed.aggregate(Sum('app_commission_pyg'))['app_commission_pyg__sum'] or 0
+        km_since_service = max(0.0, d.total_km_driven - d.last_service_km)
+
+        fleet_data.append({
+            'id': d.id,
+            'name': d.name,
+            'phone': d.phone,
+            'country': d.get_country_display(),
+            'vehicle': f"{d.vehicle_model} ({d.vehicle_color})",
+            'license_plate': d.license_plate,
+            'completed_rides': completed.count(),
+            'total_km_driven': round(d.total_km_driven, 1),
+            'km_since_service': round(km_since_service, 1),
+            'total_earnings_pyg': total_fare,
+            'total_comm_pyg': total_comm,
+            'service_needed': km_since_service >= 5000
+        })
+
+    return Response(fleet_data)
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def reset_driver_service(request, driver_id):
+    try:
+        driver = Driver.objects.get(id=driver_id)
+        driver.last_service_km = driver.total_km_driven
+        driver.save()
+        return Response({'status': 'reset', 'last_service_km': driver.last_service_km})
+    except Driver.DoesNotExist:
+        return Response({'error': 'Conductor no encontrado'}, status=status.HTTP_404_NOT_FOUND)

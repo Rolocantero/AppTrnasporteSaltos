@@ -214,14 +214,33 @@
                 <select id="driverSelect" onchange="changeActiveDriver()" style="background: rgba(255,255,255,0.08); color: #fff; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.85rem; padding: 3px 6px; width: 100%; outline: none;">
                     <option value="1">Marcos Benítez (Toyota Premio)</option>
                 </select>
-                <div style="font-size: 0.7rem; color: #38bdf8; margin-top: 2px; cursor: pointer;" onclick="openNewDriverModal()">+ Registrar Mi Vehículo</div>
+                <div style="display:flex; gap:10px; margin-top:2px;">
+                    <span style="font-size: 0.7rem; color: #38bdf8; cursor: pointer;" onclick="openNewDriverModal()">+ Registrar Vehículo</span>
+                    <span style="font-size: 0.7rem; color: #a78bfa; cursor: pointer;" onclick="openLoginModal()">🔑 Login / PIN</span>
+                </div>
             </div>
         </div>
         <div style="display: flex; gap: 6px; align-items: center;">
+            <button onclick="openReportsModal()" style="background: rgba(41, 121, 255, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 5px 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer;">📊 Mis Reportes</button>
             <div class="switch-container" onclick="toggleOnline()">
                 <div class="status-dot" id="statusDot"></div>
                 <span id="statusText" style="font-size: 0.8rem; font-weight: 600;">OFF</span>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal Login / PIN Conductor -->
+    <div id="driverLoginModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); z-index:9999; padding:20px; align-items:center; justify-content:center;">
+        <div style="background:#1e293b; border:1px solid #334155; border-radius:14px; padding:20px; width:100%; max-width:380px; color:#fff;">
+            <h3 style="margin-bottom:12px; color:#38bdf8; font-size:1.1rem;">🔑 Iniciar Sesión de Conductor</h3>
+            <form onsubmit="submitDriverLogin(event)">
+                <input type="text" id="loginPhoneDoc" placeholder="Teléfono o Cédula / CPF" required style="width:100%; padding:10px; margin-bottom:8px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff;">
+                <input type="password" id="loginPin" placeholder="PIN de 4 dígitos (por defecto 1234)" required maxlength="8" style="width:100%; padding:10px; margin-bottom:12px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff;">
+                <div style="display:flex; gap:10px;">
+                    <button type="button" onclick="closeLoginModal()" style="flex:1; padding:10px; background:transparent; border:1px solid #94a3b8; color:#fff; border-radius:8px; cursor:pointer;">Cancelar</button>
+                    <button type="submit" style="flex:1; padding:10px; background:#38bdf8; border:none; color:#000; font-weight:bold; border-radius:8px; cursor:pointer;">Ingresar</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -233,12 +252,57 @@
                 <input type="text" id="newDrvName" placeholder="Tu Nombre Completo" required style="width:100%; padding:10px; margin-bottom:8px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff;">
                 <input type="text" id="newDrvPhone" placeholder="Teléfono / WhatsApp" required style="width:100%; padding:10px; margin-bottom:8px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff;">
                 <input type="text" id="newDrvModel" placeholder="Modelo Vehículo (Ej. Toyota Allion)" required style="width:100%; padding:10px; margin-bottom:8px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff;">
-                <input type="text" id="newDrvPlate" placeholder="Número de Chapa / Placa" required style="width:100%; padding:10px; margin-bottom:12px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff;">
+                <input type="text" id="newDrvPlate" placeholder="Número de Chapa / Placa" required style="width:100%; padding:10px; margin-bottom:8px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff;">
+                <input type="password" id="newDrvPin" placeholder="PIN Secreto de 4 dígitos (Ej. 1234)" value="1234" required maxlength="8" style="width:100%; padding:10px; margin-bottom:12px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff;">
                 <div style="display:flex; gap:10px;">
                     <button type="button" onclick="closeNewDriverModal()" style="flex:1; padding:10px; background:transparent; border:1px solid #94a3b8; color:#fff; border-radius:8px; cursor:pointer;">Cancelar</button>
                     <button type="submit" style="flex:1; padding:10px; background:#00c853; border:none; color:#000; font-weight:bold; border-radius:8px; cursor:pointer;">Guardar y Activar</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal Mis Reportes y Mantenimiento -->
+    <div id="driverReportsModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); z-index:9999; padding:16px; overflow-y:auto;">
+        <div style="background:#1e293b; border:1px solid #334155; border-radius:16px; padding:18px; width:100%; max-width:500px; margin:20px auto; color:#fff;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid #334155; padding-bottom:10px;">
+                <h3 style="color:#00c853; font-size:1.15rem;">📊 Mis Reportes y Ganancias</h3>
+                <button onclick="closeReportsModal()" style="background:transparent; border:none; color:#ef4444; font-weight:bold; font-size:1.2rem; cursor:pointer;">✕</button>
+            </div>
+
+            <!-- Resumen de Ingresos -->
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-bottom:14px;">
+                <div style="background:rgba(0,200,83,0.1); border:1px solid rgba(0,200,83,0.3); border-radius:10px; padding:10px; text-align:center;">
+                    <div style="font-size:0.7rem; color:#94a3b8;">Hoy (₲)</div>
+                    <div id="repToday" style="font-size:1rem; font-weight:800; color:#00c853;">₲ 0</div>
+                </div>
+                <div style="background:rgba(41,121,255,0.1); border:1px solid rgba(41,121,255,0.3); border-radius:10px; padding:10px; text-align:center;">
+                    <div style="font-size:0.7rem; color:#94a3b8;">Esta Semana</div>
+                    <div id="repWeek" style="font-size:1rem; font-weight:800; color:#38bdf8;">₲ 0</div>
+                </div>
+                <div style="background:rgba(168,85,247,0.1); border:1px solid rgba(168,85,247,0.3); border-radius:10px; padding:10px; text-align:center;">
+                    <div style="font-size:0.7rem; color:#94a3b8;">Este Mes</div>
+                    <div id="repMonth" style="font-size:1rem; font-weight:800; color:#c084fc;">₲ 0</div>
+                </div>
+            </div>
+
+            <!-- Estado de Mantenimiento del Vehículo -->
+            <div style="background:#0f172a; border:1px solid #334155; border-radius:12px; padding:12px; margin-bottom:14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-size:0.75rem; color:#94a3b8;">🛠️ Mantenimiento del Vehículo</div>
+                        <div id="maintKmText" style="font-size:0.95rem; font-weight:700; color:#f8fafc; margin-top:2px;">0 km desde el último service</div>
+                    </div>
+                    <span id="maintBadge" style="background:#166534; color:#4ade80; padding:4px 8px; border-radius:8px; font-size:0.75rem; font-weight:700;">🟢 Al Día</span>
+                </div>
+                <button onclick="resetServiceKm()" style="margin-top:10px; width:100%; padding:8px; background:rgba(255,255,255,0.06); border:1px solid #334155; color:#38bdf8; border-radius:8px; font-size:0.8rem; font-weight:600; cursor:pointer;">🔧 Registrar Cambio de Aceite / Service Realizado</button>
+            </div>
+
+            <!-- Historial Reciente de Viajes -->
+            <h4 style="font-size:0.9rem; color:#94a3b8; margin-bottom:8px;">🚘 Historial de Viajes Completados</h4>
+            <div id="repRidesList" style="max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;">
+                <div style="text-align:center; padding:12px; color:#64748b; font-size:0.8rem;">Cargando historial...</div>
+            </div>
         </div>
     </div>
 
@@ -300,6 +364,108 @@
             localStorage.setItem('activeDriverId', currentDriverId);
             const selectText = document.getElementById('driverSelect').options[document.getElementById('driverSelect').selectedIndex].text;
             updateCarMarkerName(selectText.split('(')[0]);
+        }
+
+        function openLoginModal() {
+            document.getElementById('driverLoginModal').style.display = 'flex';
+        }
+
+        function closeLoginModal() {
+            document.getElementById('driverLoginModal').style.display = 'none';
+        }
+
+        function submitDriverLogin(e) {
+            e.preventDefault();
+            const phoneDoc = document.getElementById('loginPhoneDoc').value;
+            const pin = document.getElementById('loginPin').value;
+
+            fetch('/api/driver/login/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone_or_doc: phoneDoc, pin_code: pin })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert("Error: " + data.error);
+                } else {
+                    currentDriverId = data.driver_id;
+                    localStorage.setItem('activeDriverId', currentDriverId);
+                    alert("Bienvenido " + data.name + " (" + data.vehicle_model + ")");
+                    closeLoginModal();
+                    loadDriversList();
+                }
+            })
+            .catch(err => alert("Error de conexión al iniciar sesión"));
+        }
+
+        function openReportsModal() {
+            document.getElementById('driverReportsModal').style.display = 'block';
+            loadDriverReports();
+        }
+
+        function closeReportsModal() {
+            document.getElementById('driverReportsModal').style.display = 'none';
+        }
+
+        function loadDriverReports() {
+            if (!currentDriverId) return;
+            fetch(`/api/driver/stats/${currentDriverId}/`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) return;
+                    document.getElementById('repToday').innerText = `₲ ${(data.today_earnings_pyg || 0).toLocaleString('es-PY')}`;
+                    document.getElementById('repWeek').innerText = `₲ ${(data.week_earnings_pyg || 0).toLocaleString('es-PY')}`;
+                    document.getElementById('repMonth').innerText = `₲ ${(data.month_earnings_pyg || 0).toLocaleString('es-PY')}`;
+
+                    const kmText = `${data.km_since_service} km desde el último service (${data.total_km_driven} km total)`;
+                    document.getElementById('maintKmText').innerText = kmText;
+
+                    const badge = document.getElementById('maintBadge');
+                    if (data.service_status === 'URGENT') {
+                        badge.innerText = '🔴 SERVICE URGENTE';
+                        badge.style.background = '#991b1b';
+                        badge.style.color = '#fca5a5';
+                    } else if (data.service_status === 'WARNING') {
+                        badge.innerText = '🟡 Service Recomendado';
+                        badge.style.background = '#854d0e';
+                        badge.style.color = '#fde047';
+                    } else {
+                        badge.innerText = '🟢 Al Día';
+                        badge.style.background = '#166534';
+                        badge.style.color = '#4ade80';
+                    }
+
+                    const list = document.getElementById('repRidesList');
+                    if (!data.recent_rides || data.recent_rides.length === 0) {
+                        list.innerHTML = '<div style="text-align:center; padding:12px; color:#64748b; font-size:0.8rem;">No tienes viajes completados aún.</div>';
+                    } else {
+                        list.innerHTML = data.recent_rides.map(r => `
+                            <div style="background:#0f172a; border:1px solid #334155; border-radius:10px; padding:10px; font-size:0.8rem;">
+                                <div style="display:flex; justify-content:space-between; color:#38bdf8; font-weight:700;">
+                                    <span>👤 ${r.passenger}</span>
+                                    <span>₲ ${r.fare_pyg.toLocaleString('es-PY')}</span>
+                                </div>
+                                <div style="color:#94a3b8; font-size:0.75rem; margin-top:2px;">📍 ${r.origin} ➔ 🏁 ${r.destination}</div>
+                                <div style="display:flex; justify-content:space-between; color:#64748b; font-size:0.7rem; margin-top:4px;">
+                                    <span>💳 ${r.payment_method}</span>
+                                    <span>📅 ${r.date}</span>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                })
+                .catch(err => console.log("Error cargando reportes:", err));
+        }
+
+        function resetServiceKm() {
+            if (!confirm("¿Confirmas que realizaste el cambio de aceite / mantenimiento al vehículo?")) return;
+            fetch(`/api/driver/${currentDriverId}/service/reset/`, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    alert("Mantenimiento registrado. Contador de kilómetros reiniciado a 0 km.");
+                    loadDriverReports();
+                });
         }
 
         function openNewDriverModal() {
