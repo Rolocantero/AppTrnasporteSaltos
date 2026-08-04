@@ -637,11 +637,16 @@ def driver_stats(request, driver_id):
             'date': r.created_at.strftime('%d/%m %H:%M')
         })
 
+    curr = CurrencyExchange.objects.first()
+    rate_brl = float(curr.pyg_per_brl) if curr and curr.pyg_per_brl > 0 else 1350.0
+    today_earnings_brl = round(today_earnings / rate_brl, 2)
+
     return Response({
         'driver_id': driver.id,
         'driver_name': driver.name,
         'vehicle': f"{driver.vehicle_model} ({driver.license_plate})",
         'today_earnings_pyg': today_earnings,
+        'today_earnings_brl': today_earnings_brl,
         'today_rides_count': today_rides.count(),
         'week_earnings_pyg': week_earnings,
         'month_earnings_pyg': month_earnings,

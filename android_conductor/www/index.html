@@ -210,13 +210,12 @@
     <div id="header">
         <div class="driver-info" style="flex: 1; margin-right: 8px;">
             <div class="avatar" id="driverAvatar">🚖</div>
-            <div style="flex: 1;">
-                <select id="driverSelect" onchange="changeActiveDriver()" style="background: rgba(255,255,255,0.08); color: #fff; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.85rem; padding: 3px 6px; width: 100%; outline: none;">
-                    <option value="1">Marcos Benítez (Toyota Premio)</option>
-                </select>
+            <div style="flex: 1; overflow: hidden;">
+                <div id="driverNameTitle" style="font-weight: 700; font-size: 0.88rem; color: #fff; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">Inicia Sesión</div>
+                <div id="driverVehicleSub" style="font-size: 0.7rem; color: #94a3b8; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">Ingresa tu cuenta para operar</div>
                 <div style="display:flex; gap:10px; margin-top:2px;">
-                    <span style="font-size: 0.7rem; color: #38bdf8; cursor: pointer;" onclick="openNewDriverModal()">+ Registrar Vehículo</span>
-                    <span style="font-size: 0.7rem; color: #a78bfa; cursor: pointer;" onclick="openLoginModal()">🔑 Login / PIN</span>
+                    <span id="logoutBtn" style="font-size: 0.7rem; color: #ef4444; cursor: pointer; font-weight:600;" onclick="logoutDriver()">🚪 Cerrar Sesión</span>
+                    <span style="font-size: 0.7rem; color: #38bdf8; cursor: pointer;" onclick="openNewDriverModal()">+ Registrarse</span>
                 </div>
             </div>
         </div>
@@ -341,29 +340,12 @@
         let activeRideId = null;
         let currentDriverId = localStorage.getItem('activeDriverId') || 1;
 
-        function loadDriversList() {
-            fetch('https://apptrnasportesaltos.onrender.com/api/drivers/list/')
-                .then(res => res.json())
-                .then(drivers => {
-                    if (!drivers || drivers.length === 0) return;
-                    const select = document.getElementById('driverSelect');
-                    select.innerHTML = drivers.map(d => 
-                        `<option value="${d.id}" ${d.id == currentDriverId ? 'selected' : ''}>${d.name} (${d.vehicle_model} - ${d.license_plate})</option>`
-                    ).join('');
-
-                    const activeDrv = drivers.find(d => d.id == currentDriverId) || drivers[0];
-                    currentDriverId = activeDrv.id;
-                    localStorage.setItem('activeDriverId', currentDriverId);
-                    updateCarMarkerName(activeDrv.name);
-                })
-                .catch(err => console.log("Cargando perfil chofer..."));
-        }
-
-        function changeActiveDriver() {
-            currentDriverId = document.getElementById('driverSelect').value;
-            localStorage.setItem('activeDriverId', currentDriverId);
-            const selectText = document.getElementById('driverSelect').options[document.getElementById('driverSelect').selectedIndex].text;
-            updateCarMarkerName(selectText.split('(')[0]);
+        function loadDriverProfile() {
+            if (currentDriverId) {
+                loadDriverReports();
+            } else {
+                openLoginModal();
+            }
         }
 
         function openLoginModal() {
@@ -393,7 +375,7 @@
                     localStorage.setItem('activeDriverId', currentDriverId);
                     alert("Bienvenido " + data.name + " (" + data.vehicle_model + ")");
                     closeLoginModal();
-                    loadDriversList();
+                    loadDriverProfile();
                 }
             })
             .catch(err => alert("Error de conexión al iniciar sesión"));
@@ -408,13 +390,46 @@
             document.getElementById('driverReportsModal').style.display = 'none';
         }
 
+        function logoutDriver() {
+            if (!confirm("¿Deseas cerrar sesión en este dispositivo?")) return;
+            localStorage.removeItem('activeDriverId');
+            currentDriverId = null;
+            document.getElementById('driverNameTitle').innerText = "Inicia Sesión";
+            document.getElementById('driverVehicleSub').innerText = "Ingresa tu cuenta para operar";
+            document.getElementById('totalPYG').innerText = "₲ 0";
+            document.getElementById('totalBRL').innerText = "R$ 0.00";
+            document.getElementById('completedCount').innerText = "0";
+            openLoginModal();
+        }
+
         function loadDriverReports() {
-            if (!currentDriverId) return;
+            if (!currentDriverId) {
+                openLoginModal();
+                return;
+            }
             fetch(`/api/driver/stats/${currentDriverId}/`)
                 .then(res => res.json())
                 .then(data => {
-                    if (data.error) return;
-                    document.getElementById('repToday').innerText = `₲ ${(data.today_earnings_pyg || 0).toLocaleString('es-PY')}`;
+                    if (data.error) {
+                        openLoginModal();
+                        return;
+                    }
+                    // Actualizar datos del header del chofer activo
+                    document.getElementById('driverNameTitle').innerText = data.driver_name;
+                    document.getElementById('driverVehicleSub').innerText = data.vehicle;
+                    updateCarMarkerName(data.driver_name);
+
+                    // Sincronizar barra principal (MISMO VALOR REAL DE LA BASE DE DATOS)
+                    const todayPyg = (data.today_earnings_pyg || 0);
+                    const todayBrl = (data.today_earnings_brl || 0);
+                    const todayCount = (data.today_rides_count || 0);
+
+                    document.getElementById('totalPYG').innerText = `₲ ${todayPyg.toLocaleString('es-PY')}`;
+                    document.getElementById('totalBRL').innerText = `R$ ${todayBrl.toFixed(2)}`;
+                    document.getElementById('completedCount').innerText = todayCount;
+
+                    // Sincronizar modal de reportes
+                    document.getElementById('repToday').innerText = `₲ ${todayPyg.toLocaleString('es-PY')}`;
                     document.getElementById('repWeek').innerText = `₲ ${(data.week_earnings_pyg || 0).toLocaleString('es-PY')}`;
                     document.getElementById('repMonth').innerText = `₲ ${(data.month_earnings_pyg || 0).toLocaleString('es-PY')}`;
 
@@ -483,6 +498,7 @@
                 phone: document.getElementById('newDrvPhone').value,
                 vehicle_model: document.getElementById('newDrvModel').value,
                 license_plate: document.getElementById('newDrvPlate').value,
+                pin_code: document.getElementById('newDrvPin').value || "1234",
                 document_id: 'REG-APP-' + Date.now(),
                 country: 'PY'
             };
@@ -498,7 +514,7 @@
                 currentDriverId = data.driver_id;
                 localStorage.setItem('activeDriverId', currentDriverId);
                 closeNewDriverModal();
-                loadDriversList();
+                loadDriverProfile();
             })
             .catch(err => alert("Error al registrar vehículo: " + err));
         }
@@ -692,7 +708,7 @@
             fetch(`/api/rides/${rideId}/accept/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ driver_id: 1 })
+                body: JSON.stringify({ driver_id: currentDriverId || 1 })
             })
             .then(res => res.json())
             .then(data => {
@@ -765,14 +781,8 @@
                 clearRouteOnMap();
                 alert(`🎉 ¡Viaje #${rideId} completado y cobrado con éxito!`);
                 
-                // Actualizar ganancias del conductor
-                totalEarningsPYG += farePYG;
-                totalEarningsBRL += fareBRL;
-                completedCount++;
-
-                document.getElementById('totalPYG').innerText = `₲ ${totalEarningsPYG.toLocaleString('es-PY')}`;
-                document.getElementById('totalBRL').innerText = `R$ ${totalEarningsBRL.toFixed(2)}`;
-                document.getElementById('completedCount').innerText = completedCount;
+                // Cargar inmediatamente métricas reales sincronizadas desde PostgreSQL
+                loadDriverReports();
 
                 // Remover la tarjeta del viaje completado
                 const card = document.getElementById(`card-ride-${rideId}`);
@@ -788,6 +798,7 @@
 
         window.onload = function() {
             initMap();
+            loadDriverProfile();
             toggleOnline();
         };
     </script>
