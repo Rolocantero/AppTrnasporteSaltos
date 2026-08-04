@@ -1,6 +1,8 @@
 *.pyc
 __pycache__/
 db.sqlite3
+venv/
+backend/venv/
 .gradle/
 platforms/
 plugins/
