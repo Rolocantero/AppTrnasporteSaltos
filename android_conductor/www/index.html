@@ -567,6 +567,17 @@
             loadDriversList();
         }
 
+        let gpsWatchId = null;
+
+        function sendGPSLocation(lat, lng) {
+            if (!currentDriverId) return;
+            fetch('https://apptrnasportesaltos.onrender.com/api/driver/location/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ driver_id: currentDriverId, lat: lat, lng: lng })
+            }).catch(e => {});
+        }
+
         function toggleOnline() {
             isOnline = !isOnline;
             const dot = document.getElementById('statusDot');
@@ -577,6 +588,13 @@
                 txt.innerText = "EN LÍNEA";
                 txt.style.color = "#00c853";
                 
+                // Iniciar transmisión de GPS en tiempo real
+                if (navigator.geolocation) {
+                    gpsWatchId = navigator.geolocation.watchPosition(pos => {
+                        sendGPSLocation(pos.coords.latitude, pos.coords.longitude);
+                    }, err => {}, { enableHighAccuracy: true });
+                }
+
                 // Iniciar polling para buscar viajes REALES pedidos desde el backend
                 fetchPendingRides();
                 pollInterval = setInterval(fetchPendingRides, 3000);
@@ -584,6 +602,12 @@
                 dot.classList.remove('online');
                 txt.innerText = "DESCONECTADO";
                 txt.style.color = "#ffffff";
+
+                if (gpsWatchId && navigator.geolocation) {
+                    navigator.geolocation.clearWatch(gpsWatchId);
+                    gpsWatchId = null;
+                }
+
                 if (pollInterval) clearInterval(pollInterval);
                 document.getElementById('ridesContainer').innerHTML = '';
                 knownRides.clear();

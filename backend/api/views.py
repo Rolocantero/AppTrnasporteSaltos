@@ -246,6 +246,10 @@ def accept_ride(request, ride_id):
         'driver_name': driver.name,
         'driver_phone': driver.phone,
         'driver_rating': driver.rating_avg,
+        'pix_key': driver.pix_key,
+        'bank_alias': driver.bank_alias,
+        'driver_lat': driver.current_lat,
+        'driver_lng': driver.current_lng,
         'vehicle': f"{driver.vehicle_model} ({driver.license_plate})",
         'origin_lat': float(ride.origin_lat),
         'origin_lng': float(ride.origin_lng),
@@ -266,6 +270,10 @@ def update_ride_status(request, ride_id):
         driver_name = ride.driver.name if ride.driver else None
         driver_phone = ride.driver.phone if ride.driver else None
         driver_rating = ride.driver.rating_avg if ride.driver else 5.0
+        pix_key = ride.driver.pix_key if ride.driver else None
+        bank_alias = ride.driver.bank_alias if ride.driver else None
+        driver_lat = ride.driver.current_lat if ride.driver else None
+        driver_lng = ride.driver.current_lng if ride.driver else None
         vehicle = f"{ride.driver.vehicle_model} ({ride.driver.license_plate})" if ride.driver else None
         return Response({
             'ride_id': ride.id,
@@ -273,6 +281,10 @@ def update_ride_status(request, ride_id):
             'driver_name': driver_name,
             'driver_phone': driver_phone,
             'driver_rating': driver_rating,
+            'pix_key': pix_key,
+            'bank_alias': bank_alias,
+            'driver_lat': driver_lat,
+            'driver_lng': driver_lng,
             'vehicle': vehicle,
             'rating': ride.rating
         })
@@ -284,6 +296,55 @@ def update_ride_status(request, ride_id):
     ride.status = new_status
     ride.save()
     return Response({'ride_id': ride.id, 'status': ride.status})
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def validate_coupon(request):
+    code = request.data.get('code', '').strip().upper()
+    try:
+        coupon = Coupon.objects.get(code=code, is_active=True)
+        return Response({
+            'valid': True,
+            'code': coupon.code,
+            'discount_percent': coupon.discount_percent,
+            'discount_flat_pyg': coupon.discount_flat_pyg
+        })
+    except Coupon.DoesNotExist:
+        return Response({'valid': False, 'error': 'Cupón inválido o expirado'}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def update_driver_location(request):
+    driver_id = request.data.get('driver_id')
+    lat = request.data.get('lat')
+    lng = request.data.get('lng')
+
+    if not driver_id or lat is None or lng is None:
+        return Response({'error': 'Faltan parámetros'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        driver = Driver.objects.get(id=driver_id)
+        driver.current_lat = float(lat)
+        driver.current_lng = float(lng)
+        driver.save()
+        return Response({'status': 'updated', 'lat': driver.current_lat, 'lng': driver.current_lng})
+    except Driver.DoesNotExist:
+        return Response({'error': 'Conductor no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def toggle_driver_verification(request, driver_id):
+    try:
+        driver = Driver.objects.get(id=driver_id)
+        is_verified = request.data.get('is_verified')
+        if is_verified is not None:
+            driver.is_verified = bool(is_verified)
+        else:
+            driver.is_verified = not driver.is_verified
+        driver.save()
+        return Response({'status': 'updated', 'is_verified': driver.is_verified})
+    except Driver.DoesNotExist:
+        return Response({'error': 'Conductor no encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])

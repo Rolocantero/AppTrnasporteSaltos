@@ -23,6 +23,9 @@ urlpatterns = [
     path('locations/<int:location_id>/delete/', views.delete_city_location, name='delete_city_location'),
     path('driver/login/', views.driver_login, name='driver_login'),
     path('driver/stats/<int:driver_id>/', views.driver_stats, name='driver_stats'),
+    path('driver/location/', views.update_driver_location, name='update_driver_location'),
+    path('coupons/validate/', views.validate_coupon, name='validate_coupon'),
     path('admin/fleet/', views.admin_fleet_stats, name='admin_fleet_stats'),
+    path('admin/driver/<int:driver_id>/verify/', views.toggle_driver_verification, name='toggle_driver_verification'),
     path('driver/<int:driver_id>/service/reset/', views.reset_driver_service, name='reset_driver_service'),
 ]

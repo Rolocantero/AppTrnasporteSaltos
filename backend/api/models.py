@@ -62,6 +62,9 @@ class Driver(models.Model):
     total_km_driven = models.FloatField(default=0.0, verbose_name="Kilometraje Acumulado (km)")
     last_service_km = models.FloatField(default=0.0, verbose_name="Km del Último Mantenimiento")
 
+    pix_key = models.CharField(max_length=100, blank=True, null=True, verbose_name="Chave PIX (Brasil)")
+    bank_alias = models.CharField(max_length=100, blank=True, null=True, verbose_name="Alias Cta. Bancaria (Paraguay)")
+
     rating_sum = models.IntegerField(default=0, verbose_name="Suma de Estrellas")
     rating_count = models.IntegerField(default=0, verbose_name="Cantidad de Calificaciones")
 
@@ -84,6 +87,21 @@ class Driver(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.vehicle_model} - {self.license_plate}) ⭐{self.rating_avg}"
+
+
+class Coupon(models.Model):
+    code = models.CharField(max_length=30, unique=True, verbose_name="Código de Cupón")
+    discount_percent = models.IntegerField(default=0, verbose_name="Descuento (%)")
+    discount_flat_pyg = models.IntegerField(default=0, verbose_name="Descuento Fijo (₲)")
+    is_active = models.BooleanField(default=True, verbose_name="Activo")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Cupón de Descuento"
+        verbose_name_plural = "Cupones de Descuento"
+
+    def __str__(self):
+        return f"{self.code} ({self.discount_percent}% / ₲{self.discount_flat_pyg})"
 
 
 class Passenger(models.Model):

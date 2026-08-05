@@ -498,7 +498,12 @@
                                             <td><span class="badge bg-primary">${d.completed_rides} viajes</span></td>
                                             <td><strong>${d.total_km_driven} km</strong><br><small class="text-secondary">${d.km_since_service} km desde service</small></td>
                                             <td class="text-success fw-bold">₲ ${d.total_earnings_pyg.toLocaleString('es-PY')}</td>
-                                            <td>${maintBadge}</td>
+                                            <td>
+                                                ${maintBadge}
+                                                <div class="mt-1">
+                                                    <button onclick="toggleVerifyDriver(${d.id})" class="btn btn-sm ${d.is_verified !== false ? 'btn-outline-success' : 'btn-outline-danger'}" style="font-size:0.7rem; padding:2px 6px;">${d.is_verified !== false ? '🟢 Habilitado' : '🔴 Bloqueado'}</button>
+                                                </div>
+                                            </td>
                                         </tr>
                                     `;
                                 }).join('');
@@ -523,6 +528,14 @@
                     }
                 })
                 .catch(err => console.error("Error cargando dashboard:", err));
+        }
+
+        function toggleVerifyDriver(driverId) {
+            fetch(`/api/admin/driver/${driverId}/verify/`, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    loadDashboard();
+                });
         }
 
         function showFeedback() {
