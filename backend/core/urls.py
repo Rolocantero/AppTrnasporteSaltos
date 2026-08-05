@@ -87,6 +87,7 @@ def service_worker_view(request):
 admin.site.site_header = "Panel de Control - Transporte Fronterizo (Saltos del Guairá)"
 admin.site.site_title = "Admin Movilidad Frontera"
 admin.site.index_title = "Gestión de Viajes, Conductores y Tarifas"
+admin.site.site_url = '/dashboard/'
 
 from django.conf import settings
 from django.conf.urls.static import static
