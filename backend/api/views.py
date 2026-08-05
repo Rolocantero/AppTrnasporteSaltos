@@ -202,6 +202,7 @@ def list_pending_rides(request):
         data.append({
             'ride_id': r.id,
             'passenger': r.passenger.name,
+            'passenger_phone': r.passenger.phone,
             'origin': r.origin_address,
             'destination': r.destination_address,
             'origin_lat': float(r.origin_lat),
@@ -243,6 +244,8 @@ def accept_ride(request, ride_id):
     return Response({
         'status': 'ACCEPTED',
         'driver_name': driver.name,
+        'driver_phone': driver.phone,
+        'driver_rating': driver.rating_avg,
         'vehicle': f"{driver.vehicle_model} ({driver.license_plate})",
         'origin_lat': float(ride.origin_lat),
         'origin_lng': float(ride.origin_lng),
@@ -261,12 +264,17 @@ def update_ride_status(request, ride_id):
 
     if request.method == 'GET':
         driver_name = ride.driver.name if ride.driver else None
+        driver_phone = ride.driver.phone if ride.driver else None
+        driver_rating = ride.driver.rating_avg if ride.driver else 5.0
         vehicle = f"{ride.driver.vehicle_model} ({ride.driver.license_plate})" if ride.driver else None
         return Response({
             'ride_id': ride.id,
             'status': ride.status,
             'driver_name': driver_name,
-            'vehicle': vehicle
+            'driver_phone': driver_phone,
+            'driver_rating': driver_rating,
+            'vehicle': vehicle,
+            'rating': ride.rating
         })
 
     new_status = request.data.get('status')
@@ -276,6 +284,32 @@ def update_ride_status(request, ride_id):
     ride.status = new_status
     ride.save()
     return Response({'ride_id': ride.id, 'status': ride.status})
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def rate_ride(request, ride_id):
+    try:
+        ride = RideRequest.objects.get(id=ride_id)
+    except RideRequest.DoesNotExist:
+        return Response({'error': 'Viaje no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    rating_val = int(request.data.get('rating', 5))
+    comment = request.data.get('comment', '')
+
+    ride.rating = max(1, min(5, rating_val))
+    ride.rating_comment = comment
+    ride.save()
+
+    if ride.driver:
+        ride.driver.rating_sum += ride.rating
+        ride.driver.rating_count += 1
+        ride.driver.save()
+
+    return Response({
+        'status': 'RATED',
+        'rating': ride.rating,
+        'driver_rating_avg': ride.driver.rating_avg if ride.driver else 5.0
+    })
 
 @api_view(['GET'])
 def get_dashboard_stats(request):
@@ -644,6 +678,7 @@ def driver_stats(request, driver_id):
     return Response({
         'driver_id': driver.id,
         'driver_name': driver.name,
+        'rating_avg': driver.rating_avg,
         'vehicle': f"{driver.vehicle_model} ({driver.license_plate})",
         'today_earnings_pyg': today_earnings,
         'today_earnings_brl': today_earnings_brl,
@@ -676,6 +711,7 @@ def admin_fleet_stats(request):
             'country': d.get_country_display(),
             'vehicle': f"{d.vehicle_model} ({d.vehicle_color})",
             'license_plate': d.license_plate,
+            'rating_avg': d.rating_avg,
             'completed_rides': completed.count(),
             'total_km_driven': round(d.total_km_driven, 1),
             'km_since_service': round(km_since_service, 1),

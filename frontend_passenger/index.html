@@ -565,6 +565,68 @@
             });
         }
 
+    <!-- Modal Calificación con 5 Estrellas -->
+    <div id="ratingModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); z-index:99999; padding:20px; align-items:center; justify-content:center;">
+        <div style="background:#1e293b; border:1px solid #334155; border-radius:16px; padding:24px; width:100%; max-width:380px; text-align:center; color:#fff;">
+            <div style="font-size:2.5rem; margin-bottom:8px;">🏁</div>
+            <h3 style="color:#00c853; margin-bottom:6px; font-size:1.2rem;">¡Llegaste a tu Destino!</h3>
+            <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:16px;">¿Cómo fue tu experiencia de viaje?</p>
+            
+            <div id="starContainer" style="font-size:2rem; cursor:pointer; margin-bottom:16px; display:flex; justify-content:center; gap:8px;">
+                <span onclick="setRating(1)">★</span>
+                <span onclick="setRating(2)">★</span>
+                <span onclick="setRating(3)">★</span>
+                <span onclick="setRating(4)">★</span>
+                <span onclick="setRating(5)">★</span>
+            </div>
+
+            <textarea id="ratingComment" placeholder="Comentario opcional sobre el chofer o el auto..." style="width:100%; padding:10px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff; font-size:0.8rem; height:60px; margin-bottom:14px; outline:none; resize:none;"></textarea>
+
+            <button onclick="submitRating()" style="width:100%; padding:12px; background:#00c853; border:none; color:#000; font-weight:800; border-radius:10px; font-size:0.95rem; cursor:pointer;">ENVIAR CALIFICACIÓN</button>
+        </div>
+    </div>
+
+    <script style="display:none;">
+        let selectedStars = 5;
+
+        function setRating(val) {
+            selectedStars = val;
+            const stars = document.querySelectorAll('#starContainer span');
+            stars.forEach((s, idx) => {
+                s.style.color = idx < val ? '#f59e0b' : '#475569';
+            });
+        }
+
+        function submitRating() {
+            if (!currentRideId) {
+                document.getElementById('ratingModal').style.display = 'none';
+                document.getElementById('statusOverlay').style.display = 'none';
+                return;
+            }
+            const comment = document.getElementById('ratingComment').value;
+            fetch(`/api/rides/${currentRideId}/rate/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rating: selectedStars, comment: comment })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert("¡Gracias por calificar a tu conductor!");
+                document.getElementById('ratingModal').style.display = 'none';
+                document.getElementById('statusOverlay').style.display = 'none';
+            })
+            .catch(err => {
+                document.getElementById('ratingModal').style.display = 'none';
+                document.getElementById('statusOverlay').style.display = 'none';
+            });
+        }
+
+        function triggerSOS(rideId) {
+            const msg = `🚨 ALERTA SOS EMERGENCIA VIAJAYA! Necesito asistencia urgente en mi viaje #${rideId}. Ubicación Salto del Guairá.`;
+            const url = `https://wa.me/595981000000?text=${encodeURIComponent(msg)}`;
+            window.open(url, '_blank');
+        }
+
         function pollRideStatus(rideId) {
             if (!rideId) return;
             if (pollInterval) clearInterval(pollInterval);
@@ -573,13 +635,37 @@
                 fetch(`/api/rides/${rideId}/status/`)
                     .then(res => res.json())
                     .then(data => {
-                        if (data.status === 'ACCEPTED') {
-                            clearInterval(pollInterval);
-                            const title = document.getElementById('statusTitle');
-                            const desc = document.getElementById('statusDesc');
-                            title.innerText = "¡Conductor Aceptó tu Viaje! 🎉";
-                            desc.innerHTML = `<strong>${data.driver_name || 'Marcos Benítez'}</strong> aceptó la solicitud.<br>${data.vehicle || 'Toyota Premio (AAA 123 PY)'}<br>En camino a tu ubicación.`;
+                        const title = document.getElementById('statusTitle');
+                        const desc = document.getElementById('statusDesc');
+
+                        if (data.status === 'ACCEPTED' || data.status === 'IN_PROGRESS') {
+                            const drvPhone = data.driver_phone || '+595981123456';
+                            const drvName = data.driver_name || 'Chofer Asignado';
+                            const drvVehicle = data.vehicle || 'Vehículo Registrado';
+                            const ratingAvg = data.driver_rating ? `⭐ ${data.driver_rating}` : '⭐ 5.0';
+
+                            const waMsg = encodeURIComponent(`Hola ${drvName}, soy tu pasajero del viaje #${rideId} de ViajaYa.`);
+                            const waUrl = `https://wa.me/${drvPhone.replace(/[^0-9]/g, '')}?text=${waMsg}`;
+                            const telUrl = `tel:${drvPhone}`;
+
+                            title.innerText = data.status === 'IN_PROGRESS' ? "🚗 ¡Viaje en Curso!" : "¡Conductor Aceptó tu Viaje! 🎉";
+                            desc.innerHTML = `
+                                <div style="font-weight:700; color:#38bdf8; font-size:1rem;">${drvName} <span style="color:#f59e0b;">${ratingAvg}</span></div>
+                                <div style="color:#94a3b8; font-size:0.8rem; margin-bottom:10px;">${drvVehicle}</div>
+                                
+                                <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
+                                    <div style="display:flex; gap:6px;">
+                                        <a href="${waUrl}" target="_blank" style="flex:1; background:#25d366; color:#fff; padding:8px; border-radius:8px; font-weight:bold; text-decoration:none; font-size:0.78rem; text-align:center;">💬 WhatsApp Chofer</a>
+                                        <a href="${telUrl}" style="flex:1; background:#2563eb; color:#fff; padding:8px; border-radius:8px; font-weight:bold; text-decoration:none; font-size:0.78rem; text-align:center;">📞 Llamar Chofer</a>
+                                    </div>
+                                    <button onclick="triggerSOS(${rideId})" style="background:#dc2626; color:#fff; border:none; padding:8px; border-radius:8px; font-weight:bold; font-size:0.78rem; cursor:pointer;">🚨 SOS Emergencia (Pánico)</button>
+                                </div>
+                            `;
                             document.querySelector('.spinner').style.borderColor = '#00c853';
+                        } else if (data.status === 'COMPLETED') {
+                            clearInterval(pollInterval);
+                            setRating(5);
+                            document.getElementById('ratingModal').style.display = 'flex';
                         }
                     });
             }, 2000);

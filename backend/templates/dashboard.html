@@ -493,7 +493,7 @@
                                     }
                                     return `
                                         <tr>
-                                            <td><strong>${d.name}</strong><br><small class="text-secondary">📱 ${d.phone}</small></td>
+                                            <td><strong>${d.name}</strong> <span class="badge bg-warning text-dark" style="font-size:0.75rem;">⭐ ${d.rating_avg}</span><br><small class="text-secondary">📱 ${d.phone}</small></td>
                                             <td>${d.vehicle}<br><small class="text-info">${d.license_plate}</small></td>
                                             <td><span class="badge bg-primary">${d.completed_rides} viajes</span></td>
                                             <td><strong>${d.total_km_driven} km</strong><br><small class="text-secondary">${d.km_since_service} km desde service</small></td>

@@ -62,6 +62,15 @@ class Driver(models.Model):
     total_km_driven = models.FloatField(default=0.0, verbose_name="Kilometraje Acumulado (km)")
     last_service_km = models.FloatField(default=0.0, verbose_name="Km del Último Mantenimiento")
 
+    rating_sum = models.IntegerField(default=0, verbose_name="Suma de Estrellas")
+    rating_count = models.IntegerField(default=0, verbose_name="Cantidad de Calificaciones")
+
+    @property
+    def rating_avg(self):
+        if self.rating_count > 0:
+            return round(self.rating_sum / self.rating_count, 1)
+        return 5.0
+
     is_verified = models.BooleanField(default=True, verbose_name="Verificado por Admin")
     is_online = models.BooleanField(default=False, verbose_name="En Línea")
     
@@ -74,7 +83,7 @@ class Driver(models.Model):
         verbose_name_plural = "Conductores"
 
     def __str__(self):
-        return f"{self.name} ({self.vehicle_model} - {self.license_plate})"
+        return f"{self.name} ({self.vehicle_model} - {self.license_plate}) ⭐{self.rating_avg}"
 
 
 class Passenger(models.Model):
@@ -127,6 +136,9 @@ class RideRequest(models.Model):
 
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='CASH_PYG')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+
+    rating = models.IntegerField(null=True, blank=True, verbose_name="Calificación (1-5 estrellas)")
+    rating_comment = models.TextField(null=True, blank=True, verbose_name="Comentario Pasajero")
 
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
