@@ -475,17 +475,27 @@ def get_dashboard_stats(request):
         'expenses': expenses
     })
 
+@csrf_exempt
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def register_driver(request):
     data = request.data
+    files = request.FILES
+
     driver = Driver.objects.create(
         name=data.get('name'),
         phone=data.get('phone'),
         country=data.get('country', 'PY'),
-        document_id=data.get('document_id'),
+        document_id=data.get('document_id', 'REG-APP-' + str(int(timezone.now().timestamp()))),
         vehicle_model=data.get('vehicle_model'),
         vehicle_color=data.get('vehicle_color', ''),
         license_plate=data.get('license_plate'),
+        pin_code=data.get('pin_code', '1234'),
+        photo_ci=files.get('photo_ci'),
+        photo_judicial=files.get('photo_judicial'),
+        photo_police=files.get('photo_police'),
+        photo_license_plate=files.get('photo_license_plate'),
+        photo_vehicle=files.get('photo_vehicle'),
         is_verified=True
     )
     return Response({'status': 'success', 'driver_id': driver.id, 'name': driver.name}, status=status.HTTP_201_CREATED)
@@ -831,16 +841,23 @@ def admin_fleet_stats(request):
             'id': d.id,
             'name': d.name,
             'phone': d.phone,
+            'document_id': d.document_id,
             'country': d.get_country_display(),
             'vehicle': f"{d.vehicle_model} ({d.vehicle_color})",
             'license_plate': d.license_plate,
             'rating_avg': d.rating_avg,
+            'is_verified': d.is_verified,
             'completed_rides': completed.count(),
             'total_km_driven': round(d.total_km_driven, 1),
             'km_since_service': round(km_since_service, 1),
             'total_earnings_pyg': total_fare,
             'total_comm_pyg': total_comm,
-            'service_needed': km_since_service >= 5000
+            'service_needed': km_since_service >= 5000,
+            'photo_ci': d.photo_ci.url if d.photo_ci else None,
+            'photo_judicial': d.photo_judicial.url if d.photo_judicial else None,
+            'photo_police': d.photo_police.url if d.photo_police else None,
+            'photo_license_plate': d.photo_license_plate.url if d.photo_license_plate else None,
+            'photo_vehicle': d.photo_vehicle.url if d.photo_vehicle else None,
         })
 
     return Response(fleet_data)
@@ -856,3 +873,116 @@ def reset_driver_service(request, driver_id):
         return Response({'status': 'reset', 'last_service_km': driver.last_service_km})
     except Driver.DoesNotExist:
         return Response({'error': 'Conductor no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def export_drivers_report_pdf(request):
+    drivers = Driver.objects.all().order_by('name')
+    now = timezone.now()
+    
+    html = f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte Oficial de Flota de Conductores - ViajaYa Frontera</title>
+    <style>
+        @page {{ size: A4 landscape; margin: 12mm; }}
+        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; color: #0f172a; background: #fff; }}
+        .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #00c853; padding-bottom: 12px; margin-bottom: 20px; }}
+        .title {{ font-size: 22px; font-weight: 800; color: #00c853; margin: 0; }}
+        .subtitle {{ font-size: 12px; color: #64748b; margin-top: 4px; }}
+        .meta {{ text-align: right; font-size: 11px; color: #475569; }}
+        table {{ width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }}
+        th, td {{ border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; vertical-align: middle; }}
+        th {{ background-color: #0f172a; color: #ffffff; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; }}
+        tr:nth-child(even) {{ background-color: #f8fafc; }}
+        .badge-active {{ background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 12px; font-weight: 700; font-size: 10px; }}
+        .badge-blocked {{ background: #fee2e2; color: #991b1b; padding: 3px 8px; border-radius: 12px; font-weight: 700; font-size: 10px; }}
+        .doc-link {{ color: #2563eb; font-weight: bold; text-decoration: none; margin-right: 4px; }}
+        .no-print-bar {{ background: #1e293b; color: #fff; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-radius: 8px; margin-bottom: 20px; }}
+        .btn-print {{ background: #00c853; color: #000; font-weight: 800; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-size: 14px; }}
+        @media print {{ .no-print-bar {{ display: none !important; }} body {{ padding: 0; }} }}
+    </style>
+</head>
+<body>
+    <div class="no-print-bar">
+        <div>📄 <strong>Reporte de Flota Generado Listo para Exportar a PDF</strong></div>
+        <button onclick="window.print()" class="btn-print">🖨️ IMPRIMIR / GUARDAR COMO PDF</button>
+    </div>
+
+    <div class="header">
+        <div>
+            <div class="title">🚗 REPORTE OFICIAL DE CONDUCTORES Y FLOTA DE VEHÍCULOS</div>
+            <div class="subtitle">Plataforma Movilidad Fronteriza (Saltos del Guairá • Guaíra • Mundo Novo • Katueté)</div>
+        </div>
+        <div class="meta">
+            <strong>Fecha de Emisión:</strong> {now.strftime('%d/%m/%Y %H:%M:%S')}<br>
+            <strong>Total Conductores Registrados:</strong> {drivers.count()}
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>#ID</th>
+                <th>Nombre del Conductor</th>
+                <th>Cédula / RG / CPF</th>
+                <th>Teléfono</th>
+                <th>Vehículo / Color</th>
+                <th>Chapa / Placa</th>
+                <th>Rating</th>
+                <th>Km Recorridos</th>
+                <th>Documentación</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+    """
+    for d in drivers:
+        docs = []
+        if d.photo_ci: docs.append(f'<a href="{d.photo_ci.url}" target="_blank" class="doc-link">CI</a>')
+        if d.photo_judicial: docs.append(f'<a href="{d.photo_judicial.url}" target="_blank" class="doc-link">Judicial</a>')
+        if d.photo_police: docs.append(f'<a href="{d.photo_police.url}" target="_blank" class="doc-link">Policial</a>')
+        if d.photo_license_plate: docs.append(f'<a href="{d.photo_license_plate.url}" target="_blank" class="doc-link">Chapa</a>')
+        if d.photo_vehicle: docs.append(f'<a href="{d.photo_vehicle.url}" target="_blank" class="doc-link">Vehículo</a>')
+        docs_html = " ".join(docs) if docs else '<span style="color:#94a3b8;">Sin adjuntos</span>'
+
+        status_html = '<span class="badge-active">🟢 Habilitado</span>' if d.is_verified else '<span class="badge-blocked">🔴 Pendiente</span>'
+
+        html += f"""
+            <tr>
+                <td>#{d.id}</td>
+                <td><strong>{d.name}</strong></td>
+                <td>{d.document_id}</td>
+                <td>{d.phone}</td>
+                <td>{d.vehicle_model} ({d.vehicle_color or 'N/A'})</td>
+                <td><strong>{d.license_plate}</strong></td>
+                <td>⭐ {d.rating_avg}</td>
+                <td>{round(d.total_km_driven, 1)} km</td>
+                <td>{docs_html}</td>
+                <td>{status_html}</td>
+            </tr>
+        """
+
+    html += """
+        </tbody>
+    </table>
+
+    <div style="margin-top: 30px; border-top: 1px solid #cbd5e1; padding-top: 10px; font-size: 10px; color: #64748b; display: flex; justify-content: space-between;">
+        <span>Sistema de Gestión AppTransporte Saltos</span>
+        <span>Documento oficial de control de flota</span>
+    </div>
+
+    <script>
+        // Lanzar diálogo de impresión a PDF automáticamente al cargar
+        window.onload = function() {
+            setTimeout(function() {
+                // window.print();
+            }, 500);
+        };
+    </script>
+</body>
+</html>
+    """
+    return HttpResponse(html, content_type='text/html')
+

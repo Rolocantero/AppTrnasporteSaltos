@@ -65,6 +65,12 @@ class Driver(models.Model):
     pix_key = models.CharField(max_length=100, blank=True, null=True, verbose_name="Chave PIX (Brasil)")
     bank_alias = models.CharField(max_length=100, blank=True, null=True, verbose_name="Alias Cta. Bancaria (Paraguay)")
 
+    photo_ci = models.FileField(upload_to='drivers/ci/', null=True, blank=True, verbose_name="Foto Cédula / RG / CPF")
+    photo_judicial = models.FileField(upload_to='drivers/judicial/', null=True, blank=True, verbose_name="Antecedentes Judiciales")
+    photo_police = models.FileField(upload_to='drivers/police/', null=True, blank=True, verbose_name="Antecedentes Policiales")
+    photo_license_plate = models.FileField(upload_to='drivers/plate/', null=True, blank=True, verbose_name="Foto de la Chapa / Placa")
+    photo_vehicle = models.FileField(upload_to='drivers/vehicle/', null=True, blank=True, verbose_name="Foto del Vehículo")
+
     rating_sum = models.IntegerField(default=0, verbose_name="Suma de Estrellas")
     rating_count = models.IntegerField(default=0, verbose_name="Cantidad de Calificaciones")
 

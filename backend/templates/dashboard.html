@@ -173,20 +173,23 @@
             <!-- Gestión de Choferes -->
             <div class="col-lg-7">
                 <div class="card-stat h-100">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                         <h5 class="fw-bold text-light mb-0">🚖 Flota de Conductores</h5>
-                        <button class="btn btn-custom btn-sm" data-bs-toggle="modal" data-bs-target="#driverModal">+ Nuevo Conductor</button>
+                        <div class="d-flex gap-2">
+                            <a href="/api/reports/drivers/pdf/" target="_blank" class="btn btn-outline-success btn-sm fw-bold">📄 Reporte PDF Flota</a>
+                            <button class="btn btn-custom btn-sm" data-bs-toggle="modal" data-bs-target="#driverModal">+ Nuevo Conductor</button>
+                        </div>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-dark table-striped align-middle" id="driversTable">
                             <thead>
                                 <tr>
-                                    <th>Conductor</th>
+                                    <th>Conductor / Doc</th>
                                     <th>Vehículo / Chapa</th>
                                     <th>Viajes</th>
-                                    <th>Km Recorridos</th>
-                                    <th>Ganancias (₲)</th>
-                                    <th>Mantenimiento</th>
+                                    <th>Documentos</th>
+                                    <th>Ganancias</th>
+                                    <th>Estado</th>
                                 </tr>
                             </thead>
                             <tbody id="driversTbody">
@@ -511,24 +514,36 @@
                                 drvTbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No hay choferes registrados.</td></tr>`;
                             } else {
                                 drvTbody.innerHTML = fleet.map(d => {
-                                    let maintBadge = '<span class="badge bg-success">🟢 Al Día</span>';
+                                    let maintBadge = '<span class="badge bg-success">🟢 Service Al Día</span>';
                                     if (d.km_since_service >= 8000) {
                                         maintBadge = '<span class="badge bg-danger">🔴 Service URGENTE</span>';
                                     } else if (d.km_since_service >= 5000) {
                                         maintBadge = '<span class="badge bg-warning text-dark">🟡 Próximo Service</span>';
                                     }
+
+                                    let docsBtns = [];
+                                    if (d.photo_ci) docsBtns.push(`<a href="${d.photo_ci}" target="_blank" class="badge bg-info text-dark text-decoration-none">🪪 CI</a>`);
+                                    if (d.photo_judicial) docsBtns.push(`<a href="${d.photo_judicial}" target="_blank" class="badge bg-info text-dark text-decoration-none">⚖️ Jud</a>`);
+                                    if (d.photo_police) docsBtns.push(`<a href="${d.photo_police}" target="_blank" class="badge bg-info text-dark text-decoration-none">👮 Pol</a>`);
+                                    if (d.photo_license_plate) docsBtns.push(`<a href="${d.photo_license_plate}" target="_blank" class="badge bg-info text-dark text-decoration-none">🚗 Chapa</a>`);
+                                    if (d.photo_vehicle) docsBtns.push(`<a href="${d.photo_vehicle}" target="_blank" class="badge bg-info text-dark text-decoration-none">🚘 Auto</a>`);
+                                    let docsHtml = docsBtns.length > 0 ? docsBtns.join(' ') : '<small class="text-muted">Sin adjuntos</small>';
+
                                     return `
                                         <tr>
-                                            <td><strong>${d.name}</strong> <span class="badge bg-warning text-dark" style="font-size:0.75rem;">⭐ ${d.rating_avg}</span><br><small class="text-secondary">📱 ${d.phone}</small></td>
-                                            <td>${d.vehicle}<br><small class="text-info">${d.license_plate}</small></td>
-                                            <td><span class="badge bg-primary">${d.completed_rides} viajes</span></td>
-                                            <td><strong>${d.total_km_driven} km</strong><br><small class="text-secondary">${d.km_since_service} km desde service</small></td>
+                                            <td>
+                                                <strong>${d.name}</strong> <span class="badge bg-warning text-dark" style="font-size:0.75rem;">⭐ ${d.rating_avg}</span><br>
+                                                <small class="text-secondary">📱 ${d.phone} | Doc: ${d.document_id || 'N/A'}</small>
+                                            </td>
+                                            <td>${d.vehicle}<br><small class="text-info">Chapa: ${d.license_plate}</small></td>
+                                            <td><span class="badge bg-primary">${d.completed_rides} viajes</span><br><small class="text-secondary">${d.total_km_driven} km</small></td>
+                                            <td>${docsHtml}</td>
                                             <td class="text-success fw-bold">₲ ${d.total_earnings_pyg.toLocaleString('es-PY')}</td>
                                             <td>
-                                                ${maintBadge}
-                                                <div class="mt-1">
-                                                    <button onclick="toggleVerifyDriver(${d.id})" class="btn btn-sm ${d.is_verified !== false ? 'btn-outline-success' : 'btn-outline-danger'}" style="font-size:0.7rem; padding:2px 6px;">${d.is_verified !== false ? '🟢 Habilitado' : '🔴 Bloqueado'}</button>
+                                                <div>
+                                                    <button onclick="toggleVerifyDriver(${d.id})" class="btn btn-sm ${d.is_verified !== false ? 'btn-success' : 'btn-outline-danger'}" style="font-size:0.75rem; padding:3px 8px; font-weight:bold;">${d.is_verified !== false ? '🟢 Habilitado' : '🔴 Bloqueado'}</button>
                                                 </div>
+                                                <div class="mt-1">${maintBadge}</div>
                                             </td>
                                         </tr>
                                     `;

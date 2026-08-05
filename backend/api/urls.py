@@ -30,4 +30,5 @@ urlpatterns = [
     path('driver/<int:driver_id>/service/reset/', views.reset_driver_service, name='reset_driver_service'),
     path('driver/<int:driver_id>/active_ride/', views.get_driver_active_ride, name='get_driver_active_ride'),
     path('rides/active/', views.list_active_rides, name='list_active_rides'),
+    path('reports/drivers/pdf/', views.export_drivers_report_pdf, name='export_drivers_report_pdf'),
 ]

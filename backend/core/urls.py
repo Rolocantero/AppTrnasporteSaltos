@@ -88,6 +88,9 @@ admin.site.site_header = "Panel de Control - Transporte Fronterizo (Saltos del G
 admin.site.site_title = "Admin Movilidad Frontera"
 admin.site.index_title = "Gestión de Viajes, Conductores y Tarifas"
 
+from django.conf import settings
+from django.conf.urls.static import static
+
 urlpatterns = [
     path('', passenger_view, name='passenger_app'),
     path('driver/', driver_view, name='driver_app'),
@@ -97,4 +100,5 @@ urlpatterns = [
     path('sw.js', service_worker_view, name='service_worker'),
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+

@@ -244,18 +244,37 @@
     </div>
 
     <!-- Modal Registrar Nuevo Chofer / Vehículo -->
-    <div id="newDriverModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); z-index:9999; padding:20px; align-items:center; justify-content:center;">
-        <div style="background:#1e293b; border:1px solid #334155; border-radius:14px; padding:20px; width:100%; max-width:400px; color:#fff;">
+    <div id="newDriverModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); z-index:9999; padding:16px; overflow-y:auto; align-items:center; justify-content:center;">
+        <div style="background:#1e293b; border:1px solid #334155; border-radius:14px; padding:20px; width:100%; max-width:440px; color:#fff; margin: auto;">
             <h3 style="margin-bottom:12px; color:#00c853; font-size:1.1rem;">🚗 Registrar Mi Vehículo y Perfil</h3>
             <form onsubmit="saveNewDriver(event)">
                 <input type="text" id="newDrvName" placeholder="Tu Nombre Completo" required style="width:100%; padding:10px; margin-bottom:8px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff;">
                 <input type="text" id="newDrvPhone" placeholder="Teléfono / WhatsApp" required style="width:100%; padding:10px; margin-bottom:8px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff;">
-                <input type="text" id="newDrvModel" placeholder="Modelo Vehículo (Ej. Toyota Allion)" required style="width:100%; padding:10px; margin-bottom:8px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff;">
+                <input type="text" id="newDrvDocId" placeholder="N° Cédula / RG / CPF" required style="width:100%; padding:10px; margin-bottom:8px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff;">
+                <input type="text" id="newDrvModel" placeholder="Modelo Vehículo (Ej. Toyota Premio)" required style="width:100%; padding:10px; margin-bottom:8px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff;">
                 <input type="text" id="newDrvPlate" placeholder="Número de Chapa / Placa" required style="width:100%; padding:10px; margin-bottom:8px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff;">
                 <input type="password" id="newDrvPin" placeholder="PIN Secreto de 4 dígitos (Ej. 1234)" value="1234" required maxlength="8" style="width:100%; padding:10px; margin-bottom:12px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff;">
+
+                <div style="font-size:0.8rem; color:#38bdf8; font-weight:bold; margin-bottom:6px; margin-top:8px;">📎 Adjuntar Fotos de Documentos (Requeridos):</div>
+                
+                <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:2px;">1. Foto de Cédula / RG / CPF:</div>
+                <input type="file" id="newDrvPhotoCi" accept="image/*,.pdf" style="width:100%; margin-bottom:8px; font-size:0.75rem; color:#94a3b8;">
+
+                <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:2px;">2. Antecedentes Judiciales:</div>
+                <input type="file" id="newDrvPhotoJudicial" accept="image/*,.pdf" style="width:100%; margin-bottom:8px; font-size:0.75rem; color:#94a3b8;">
+
+                <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:2px;">3. Antecedentes Policiales:</div>
+                <input type="file" id="newDrvPhotoPolice" accept="image/*,.pdf" style="width:100%; margin-bottom:8px; font-size:0.75rem; color:#94a3b8;">
+
+                <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:2px;">4. Foto de la Chapa / Placa:</div>
+                <input type="file" id="newDrvPhotoPlate" accept="image/*" style="width:100%; margin-bottom:8px; font-size:0.75rem; color:#94a3b8;">
+
+                <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:2px;">5. Foto del Vehículo:</div>
+                <input type="file" id="newDrvPhotoVehicle" accept="image/*" style="width:100%; margin-bottom:12px; font-size:0.75rem; color:#94a3b8;">
+
                 <div style="display:flex; gap:10px;">
                     <button type="button" onclick="closeNewDriverModal()" style="flex:1; padding:10px; background:transparent; border:1px solid #94a3b8; color:#fff; border-radius:8px; cursor:pointer;">Cancelar</button>
-                    <button type="submit" style="flex:1; padding:10px; background:#00c853; border:none; color:#000; font-weight:bold; border-radius:8px; cursor:pointer;">Guardar y Activar</button>
+                    <button type="submit" style="flex:1; padding:10px; background:#00c853; border:none; color:#000; font-weight:bold; border-radius:8px; cursor:pointer;">Guardar y Enviar</button>
                 </div>
             </form>
         </div>
@@ -494,24 +513,36 @@
 
         function saveNewDriver(e) {
             e.preventDefault();
-            const payload = {
-                name: document.getElementById('newDrvName').value,
-                phone: document.getElementById('newDrvPhone').value,
-                vehicle_model: document.getElementById('newDrvModel').value,
-                license_plate: document.getElementById('newDrvPlate').value,
-                pin_code: document.getElementById('newDrvPin').value || "1234",
-                document_id: 'REG-APP-' + Date.now(),
-                country: 'PY'
-            };
+            const formData = new FormData();
+            formData.append('name', document.getElementById('newDrvName').value);
+            formData.append('phone', document.getElementById('newDrvPhone').value);
+            formData.append('document_id', document.getElementById('newDrvDocId').value || ('REG-APP-' + Date.now()));
+            formData.append('vehicle_model', document.getElementById('newDrvModel').value);
+            formData.append('license_plate', document.getElementById('newDrvPlate').value);
+            formData.append('pin_code', document.getElementById('newDrvPin').value || "1234");
+            formData.append('country', 'PY');
+
+            const ciFile = document.getElementById('newDrvPhotoCi').files[0];
+            const judFile = document.getElementById('newDrvPhotoJudicial').files[0];
+            const polFile = document.getElementById('newDrvPhotoPolice').files[0];
+            const plateFile = document.getElementById('newDrvPhotoPlate').files[0];
+            const vehFile = document.getElementById('newDrvPhotoVehicle').files[0];
+
+            if (ciFile) formData.append('photo_ci', ciFile);
+            if (judFile) formData.append('photo_judicial', judFile);
+            if (polFile) formData.append('photo_police', polFile);
+            if (plateFile) formData.append('photo_license_plate', plateFile);
+            if (vehFile) formData.append('photo_vehicle', vehFile);
+
+            const drvName = document.getElementById('newDrvName').value;
 
             fetch('/api/drivers/create/', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: formData
             })
             .then(res => res.json())
             .then(data => {
-                alert(`¡Bienvenido ${payload.name}! Tu vehículo ha sido registrado exitosamente.`);
+                alert(`¡Bienvenido ${drvName}! Tu vehículo y documentos se registraron exitosamente. Queda pendiente de verificación por el Admin.`);
                 currentDriverId = data.driver_id;
                 localStorage.setItem('activeDriverId', currentDriverId);
                 closeNewDriverModal();
