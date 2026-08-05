@@ -444,6 +444,31 @@
                                 <input type="text" id="drvPlate" class="form-control bg-secondary text-light border-0" placeholder="AAA 123 PY" required>
                             </div>
                         </div>
+
+                        <hr class="border-secondary my-3">
+                        <h6 class="text-info fw-bold mb-2">📎 Adjuntar Documentación del Conductor (Opcional / Oficina):</h6>
+                        <div class="row g-2">
+                            <div class="col-6 mb-2">
+                                <label class="form-label small text-secondary">1. Cédula / RG / CPF</label>
+                                <input type="file" id="drvPhotoCi" accept="image/*,.pdf" class="form-control form-control-sm bg-secondary text-light border-0">
+                            </div>
+                            <div class="col-6 mb-2">
+                                <label class="form-label small text-secondary">2. Antecedentes Judiciales</label>
+                                <input type="file" id="drvPhotoJudicial" accept="image/*,.pdf" class="form-control form-control-sm bg-secondary text-light border-0">
+                            </div>
+                            <div class="col-6 mb-2">
+                                <label class="form-label small text-secondary">3. Antecedentes Policiales</label>
+                                <input type="file" id="drvPhotoPolice" accept="image/*,.pdf" class="form-control form-control-sm bg-secondary text-light border-0">
+                            </div>
+                            <div class="col-6 mb-2">
+                                <label class="form-label small text-secondary">4. Foto de la Chapa / Placa</label>
+                                <input type="file" id="drvPhotoPlate" accept="image/*" class="form-control form-control-sm bg-secondary text-light border-0">
+                            </div>
+                            <div class="col-12 mb-2">
+                                <label class="form-label small text-secondary">5. Foto del Vehículo</label>
+                                <input type="file" id="drvPhotoVehicle" accept="image/*" class="form-control form-control-sm bg-secondary text-light border-0">
+                            </div>
+                        </div>
                     </div>
                     <div class="modal-footer border-secondary">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -690,26 +715,37 @@
 
         function registerDriver(e) {
             e.preventDefault();
-            const payload = {
-                name: document.getElementById('drvName').value,
-                phone: document.getElementById('drvPhone').value,
-                country: document.getElementById('drvCountry').value,
-                document_id: document.getElementById('drvDoc').value,
-                vehicle_model: document.getElementById('drvModel').value,
-                license_plate: document.getElementById('drvPlate').value
-            };
+            const formData = new FormData();
+            formData.append('name', document.getElementById('drvName').value);
+            formData.append('phone', document.getElementById('drvPhone').value);
+            formData.append('country', document.getElementById('drvCountry').value);
+            formData.append('document_id', document.getElementById('drvDoc').value);
+            formData.append('vehicle_model', document.getElementById('drvModel').value);
+            formData.append('license_plate', document.getElementById('drvPlate').value);
+
+            const ciFile = document.getElementById('drvPhotoCi').files[0];
+            const judFile = document.getElementById('drvPhotoJudicial').files[0];
+            const polFile = document.getElementById('drvPhotoPolice').files[0];
+            const plateFile = document.getElementById('drvPhotoPlate').files[0];
+            const vehFile = document.getElementById('drvPhotoVehicle').files[0];
+
+            if (ciFile) formData.append('photo_ci', ciFile);
+            if (judFile) formData.append('photo_judicial', judFile);
+            if (polFile) formData.append('photo_police', polFile);
+            if (plateFile) formData.append('photo_license_plate', plateFile);
+            if (vehFile) formData.append('photo_vehicle', vehFile);
 
             fetch('/api/drivers/create/', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: formData
             })
             .then(res => res.json())
             .then(() => {
-                alert("¡Conductor registrado con éxito!");
+                alert("¡Conductor y documentación registrados con éxito!");
                 bootstrap.Modal.getInstance(document.getElementById('driverModal')).hide();
                 loadDashboard();
-            });
+            })
+            .catch(err => alert("Error al registrar conductor: " + err));
         }
 
         function addExpense(e) {
