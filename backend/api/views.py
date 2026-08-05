@@ -500,6 +500,38 @@ def register_driver(request):
     )
     return Response({'status': 'success', 'driver_id': driver.id, 'name': driver.name}, status=status.HTTP_201_CREATED)
 
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def upload_driver_docs(request, driver_id):
+    try:
+        driver = Driver.objects.get(id=driver_id)
+    except Driver.DoesNotExist:
+        return Response({'error': 'Conductor no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    files = request.FILES
+    if 'photo_ci' in files:
+        driver.photo_ci = files['photo_ci']
+    if 'photo_judicial' in files:
+        driver.photo_judicial = files['photo_judicial']
+    if 'photo_police' in files:
+        driver.photo_police = files['photo_police']
+    if 'photo_license_plate' in files:
+        driver.photo_license_plate = files['photo_license_plate']
+    if 'photo_vehicle' in files:
+        driver.photo_vehicle = files['photo_vehicle']
+
+    driver.save()
+    return Response({
+        'status': 'updated',
+        'driver_id': driver.id,
+        'photo_ci': driver.photo_ci.url if driver.photo_ci else None,
+        'photo_judicial': driver.photo_judicial.url if driver.photo_judicial else None,
+        'photo_police': driver.photo_police.url if driver.photo_police else None,
+        'photo_license_plate': driver.photo_license_plate.url if driver.photo_license_plate else None,
+        'photo_vehicle': driver.photo_vehicle.url if driver.photo_vehicle else None,
+    })
+
 @api_view(['GET'])
 def list_drivers(request):
     drivers = Driver.objects.filter(is_verified=True)

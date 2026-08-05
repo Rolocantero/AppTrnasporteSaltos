@@ -28,6 +28,7 @@ urlpatterns = [
     path('admin/fleet/', views.admin_fleet_stats, name='admin_fleet_stats'),
     path('admin/driver/<int:driver_id>/verify/', views.toggle_driver_verification, name='toggle_driver_verification'),
     path('driver/<int:driver_id>/service/reset/', views.reset_driver_service, name='reset_driver_service'),
+    path('driver/<int:driver_id>/upload_docs/', views.upload_driver_docs, name='upload_driver_docs'),
     path('driver/<int:driver_id>/active_ride/', views.get_driver_active_ride, name='get_driver_active_ride'),
     path('rides/active/', views.list_active_rides, name='list_active_rides'),
     path('reports/drivers/pdf/', views.export_drivers_report_pdf, name='export_drivers_report_pdf'),

@@ -405,7 +405,7 @@
 
     <!-- Modal Registrar Conductor -->
     <div class="modal fade" id="driverModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content bg-dark text-light border-secondary">
                 <div class="modal-header border-secondary">
                     <h5 class="modal-title">Registrar Nuevo Conductor</h5>
@@ -479,6 +479,81 @@
         </div>
     </div>
 
+    <!-- Modal Ver / Cargar Documentos de Conductor Existente -->
+    <div class="modal fade" id="driverDocsModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+            <div class="modal-content bg-dark text-light border-secondary">
+                <div class="modal-header border-secondary">
+                    <div>
+                        <h5 class="modal-title text-success fw-bold" id="docModalTitle">🪪 Documentación del Conductor</h5>
+                        <small class="text-secondary" id="docModalSub">Cédula: - | Vehículo: -</small>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form onsubmit="saveDriverDocs(event)">
+                    <input type="hidden" id="docModalDriverId">
+                    <div class="modal-body">
+                        <div class="alert alert-info bg-dark text-info border-info small mb-3">
+                            💡 Si el conductor te envió los documentos por mensaje, selecciona los archivos aquí para cargarlos manualmente. También puedes ver las fotos ya subidas haciendo clic en ellas.
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="p-3 border border-secondary rounded bg-secondary bg-opacity-10">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <strong class="text-light">1. Cédula (CI / RG / CPF)</strong>
+                                        <span id="previewCi"></span>
+                                    </div>
+                                    <input type="file" id="modalPhotoCi" accept="image/*,.pdf" class="form-control form-control-sm bg-dark text-light border-secondary">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-3 border border-secondary rounded bg-secondary bg-opacity-10">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <strong class="text-light">2. Antecedentes Judiciales</strong>
+                                        <span id="previewJudicial"></span>
+                                    </div>
+                                    <input type="file" id="modalPhotoJudicial" accept="image/*,.pdf" class="form-control form-control-sm bg-dark text-light border-secondary">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-3 border border-secondary rounded bg-secondary bg-opacity-10">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <strong class="text-light">3. Antecedentes Policiales</strong>
+                                        <span id="previewPolice"></span>
+                                    </div>
+                                    <input type="file" id="modalPhotoPolice" accept="image/*,.pdf" class="form-control form-control-sm bg-dark text-light border-secondary">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-3 border border-secondary rounded bg-secondary bg-opacity-10">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <strong class="text-light">4. Foto de la Chapa / Placa</strong>
+                                        <span id="previewPlate"></span>
+                                    </div>
+                                    <input type="file" id="modalPhotoPlate" accept="image/*" class="form-control form-control-sm bg-dark text-light border-secondary">
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="p-3 border border-secondary rounded bg-secondary bg-opacity-10">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <strong class="text-light">5. Foto del Vehículo</strong>
+                                        <span id="previewVehicle"></span>
+                                    </div>
+                                    <input type="file" id="modalPhotoVehicle" accept="image/*" class="form-control form-control-sm bg-dark text-light border-secondary">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-secondary">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        <button type="submit" class="btn btn-success fw-bold">💾 Guardar / Actualizar Documentos</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let currentRates = { brl: 1400, usd: 7500 };
@@ -533,6 +608,7 @@
                     fetch('/api/admin/fleet/')
                         .then(res => res.json())
                         .then(fleet => {
+                            window.cachedFleet = fleet || [];
                             const drvTbody = document.getElementById('driversTbody');
                             if (!fleet || fleet.length === 0) {
                                 drvTbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No hay choferes registrados.</td></tr>`;
@@ -551,17 +627,23 @@
                                     if (d.photo_police) docsBtns.push(`<a href="${d.photo_police}" target="_blank" class="badge bg-info text-dark text-decoration-none">👮 Pol</a>`);
                                     if (d.photo_license_plate) docsBtns.push(`<a href="${d.photo_license_plate}" target="_blank" class="badge bg-info text-dark text-decoration-none">🚗 Chapa</a>`);
                                     if (d.photo_vehicle) docsBtns.push(`<a href="${d.photo_vehicle}" target="_blank" class="badge bg-info text-dark text-decoration-none">🚘 Auto</a>`);
-                                    let docsHtml = docsBtns.length > 0 ? docsBtns.join(' ') : '<small class="text-muted">Sin adjuntos</small>';
+                                    let docsHtml = docsBtns.length > 0 ? docsBtns.join(' ') : '<span class="badge bg-warning text-dark">⚠️ Sin Fotos</span>';
 
                                     return `
                                         <tr>
                                             <td>
-                                                <strong>${d.name}</strong> <span class="badge bg-warning text-dark" style="font-size:0.75rem;">⭐ ${d.rating_avg}</span><br>
+                                                <a href="javascript:void(0)" onclick="openDriverDocsModal(${d.id})" class="text-light fw-bold text-decoration-none" title="Ver / Cargar Documentos">
+                                                    ${d.name} 📝
+                                                </a> 
+                                                <span class="badge bg-warning text-dark" style="font-size:0.75rem;">⭐ ${d.rating_avg}</span><br>
                                                 <small class="text-secondary">📱 ${d.phone} | Doc: ${d.document_id || 'N/A'}</small>
                                             </td>
                                             <td>${d.vehicle}<br><small class="text-info">Chapa: ${d.license_plate}</small></td>
                                             <td><span class="badge bg-primary">${d.completed_rides} viajes</span><br><small class="text-secondary">${d.total_km_driven} km</small></td>
-                                            <td>${docsHtml}</td>
+                                            <td>
+                                                <div>${docsHtml}</div>
+                                                <button onclick="openDriverDocsModal(${d.id})" class="btn btn-sm btn-outline-info mt-1" style="font-size:0.7rem; padding:2px 8px;">📁 Cargar / Ver Docs</button>
+                                            </td>
                                             <td class="text-success fw-bold">₲ ${d.total_earnings_pyg.toLocaleString('es-PY')}</td>
                                             <td>
                                                 <div>
@@ -746,6 +828,69 @@
                 loadDashboard();
             })
             .catch(err => alert("Error al registrar conductor: " + err));
+        }
+
+        function openDriverDocsModal(driverId) {
+            const fleet = window.cachedFleet || [];
+            const driver = fleet.find(d => d.id === driverId);
+            if (!driver) return alert("Conductor no encontrado");
+
+            document.getElementById('docModalDriverId').value = driver.id;
+            document.getElementById('docModalTitle').innerText = `🪪 Documentación: ${driver.name}`;
+            document.getElementById('docModalSub').innerText = `Doc/CI: ${driver.document_id || 'N/A'} | Vehículo: ${driver.vehicle} (Chapa: ${driver.license_plate})`;
+
+            const makePreview = (url, label) => url ? `<a href="${url}" target="_blank" class="badge bg-success text-decoration-none">🟢 Ver ${label}</a>` : `<span class="badge bg-danger">🔴 Sin alzar</span>`;
+
+            document.getElementById('previewCi').innerHTML = makePreview(driver.photo_ci, 'Cédula');
+            document.getElementById('previewJudicial').innerHTML = makePreview(driver.photo_judicial, 'Judicial');
+            document.getElementById('previewPolice').innerHTML = makePreview(driver.photo_police, 'Policial');
+            document.getElementById('previewPlate').innerHTML = makePreview(driver.photo_license_plate, 'Chapa');
+            document.getElementById('previewVehicle').innerHTML = makePreview(driver.photo_vehicle, 'Auto');
+
+            ['modalPhotoCi', 'modalPhotoJudicial', 'modalPhotoPolice', 'modalPhotoPlate', 'modalPhotoVehicle'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+
+            const modal = new bootstrap.Modal(document.getElementById('driverDocsModal'));
+            modal.show();
+        }
+
+        function saveDriverDocs(e) {
+            e.preventDefault();
+            const driverId = document.getElementById('docModalDriverId').value;
+            if (!driverId) return;
+
+            const formData = new FormData();
+            const ciFile = document.getElementById('modalPhotoCi').files[0];
+            const judFile = document.getElementById('modalPhotoJudicial').files[0];
+            const polFile = document.getElementById('modalPhotoPolice').files[0];
+            const plateFile = document.getElementById('modalPhotoPlate').files[0];
+            const vehFile = document.getElementById('modalPhotoVehicle').files[0];
+
+            if (ciFile) formData.append('photo_ci', ciFile);
+            if (judFile) formData.append('photo_judicial', judFile);
+            if (polFile) formData.append('photo_police', polFile);
+            if (plateFile) formData.append('photo_license_plate', plateFile);
+            if (vehFile) formData.append('photo_vehicle', vehFile);
+
+            if (!ciFile && !judFile && !polFile && !plateFile && !vehFile) {
+                return alert("Por favor selecciona al menos un archivo para subir o actualizar.");
+            }
+
+            fetch(`/api/driver/${driverId}/upload_docs/`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert("¡Documentos guardados y cargados exitosamente!");
+                const modalEl = document.getElementById('driverDocsModal');
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+                loadDashboard();
+            })
+            .catch(err => alert("Error al guardar documentos: " + err));
         }
 
         function addExpense(e) {
