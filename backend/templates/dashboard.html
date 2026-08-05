@@ -142,6 +142,32 @@
             </div>
         </div>
 
+        <!-- Sección Viajes Activos / En Curso -->
+        <div class="card-stat mb-4 border-warning bg-dark p-3" id="activeRidesCardSection">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0 fw-bold text-warning">🚗 Viajes En Curso & Solicitudes No Completadas</h5>
+                <span class="badge bg-warning text-dark fw-bold" id="activeRidesBadge">0 Activos</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-dark table-striped align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>#ID</th>
+                            <th>Pasajero</th>
+                            <th>Chofer</th>
+                            <th>Ruta (Origen ➔ Destino)</th>
+                            <th>Monto (₲)</th>
+                            <th>Estado</th>
+                            <th>Acciones Admin</th>
+                        </tr>
+                    </thead>
+                    <tbody id="activeRidesTbody">
+                        <tr><td colspan="7" class="text-center text-muted">Cargando viajes en curso...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- Secciones de Choferes y Gastos -->
         <div class="row g-4">
             <!-- Gestión de Choferes -->
@@ -526,8 +552,55 @@
                             </li>
                         `).join('');
                     }
+
+                    loadActiveRides();
                 })
                 .catch(err => console.error("Error cargando dashboard:", err));
+        }
+
+        function loadActiveRides() {
+            fetch('/api/rides/active/')
+                .then(res => res.json())
+                .then(rides => {
+                    const tbody = document.getElementById('activeRidesTbody');
+                    const badge = document.getElementById('activeRidesBadge');
+                    if (badge) badge.innerText = `${rides.length} Activos`;
+
+                    if (!tbody) return;
+                    if (!rides || rides.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No hay viajes pendientes o en curso en este momento.</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = rides.map(r => `
+                        <tr>
+                            <td><strong>#${r.ride_id}</strong></td>
+                            <td>${r.passenger} <br><small class="text-secondary">${r.passenger_phone}</small></td>
+                            <td>${r.driver}</td>
+                            <td>${r.origin} ➔ ${r.destination}</td>
+                            <td class="text-success fw-bold">₲ ${r.fare_pyg.toLocaleString('es-PY')}</td>
+                            <td><span class="badge ${r.raw_status === 'IN_PROGRESS' ? 'bg-info' : (r.raw_status === 'ACCEPTED' ? 'bg-primary' : 'bg-warning')}">${r.status}</span></td>
+                            <td>
+                                <button onclick="adminChangeRideStatus(${r.ride_id}, 'COMPLETED')" class="btn btn-sm btn-outline-success me-1">Completo</button>
+                                <button onclick="adminChangeRideStatus(${r.ride_id}, 'CANCELLED')" class="btn btn-sm btn-outline-danger">Cancelar</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                })
+                .catch(err => console.log("Error cargando viajes activos:", err));
+        }
+
+        function adminChangeRideStatus(rideId, statusStr) {
+            if (!confirm(`¿Confirmas cambiar el estado del viaje #${rideId} a ${statusStr}?`)) return;
+            fetch(`/api/rides/${rideId}/status/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: statusStr })
+            })
+            .then(res => res.json())
+            .then(() => {
+                loadDashboard();
+            });
         }
 
         function toggleVerifyDriver(driverId) {

@@ -260,6 +260,7 @@ def accept_ride(request, ride_id):
     })
 
 @api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
 def update_ride_status(request, ride_id):
     try:
         ride = RideRequest.objects.get(id=ride_id)
@@ -286,7 +287,19 @@ def update_ride_status(request, ride_id):
             'driver_lat': driver_lat,
             'driver_lng': driver_lng,
             'vehicle': vehicle,
-            'rating': ride.rating
+            'rating': ride.rating,
+            'passenger_name': ride.passenger.name if ride.passenger else "Pasajero",
+            'passenger_phone': ride.passenger.phone if ride.passenger else "+595981000000",
+            'origin_address': ride.origin_address,
+            'origin_lat': float(ride.origin_lat),
+            'origin_lng': float(ride.origin_lng),
+            'destination_address': ride.destination_address,
+            'destination_lat': float(ride.destination_lat),
+            'destination_lng': float(ride.destination_lng),
+            'fare_pyg': ride.total_fare_pyg,
+            'fare_brl': float(ride.total_fare_brl),
+            'fare_usd': float(ride.total_fare_usd),
+            'payment_method': ride.get_payment_method_display()
         })
 
     new_status = request.data.get('status')
@@ -294,8 +307,56 @@ def update_ride_status(request, ride_id):
         return Response({'error': 'Estado no válido'}, status=status.HTTP_400_BAD_REQUEST)
 
     ride.status = new_status
+    if new_status == 'COMPLETED' and not ride.completed_at:
+        ride.completed_at = timezone.now()
     ride.save()
     return Response({'ride_id': ride.id, 'status': ride.status})
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_driver_active_ride(request, driver_id):
+    ride = RideRequest.objects.filter(driver_id=driver_id, status__in=['ACCEPTED', 'IN_PROGRESS']).order_by('-created_at').first()
+    if not ride:
+        return Response({'active_ride': False})
+    
+    return Response({
+        'active_ride': True,
+        'ride_id': ride.id,
+        'status': ride.status,
+        'passenger_name': ride.passenger.name if ride.passenger else "Pasajero",
+        'passenger_phone': ride.passenger.phone if ride.passenger else "+595981000000",
+        'origin_address': ride.origin_address,
+        'origin_lat': float(ride.origin_lat),
+        'origin_lng': float(ride.origin_lng),
+        'destination_address': ride.destination_address,
+        'destination_lat': float(ride.destination_lat),
+        'destination_lng': float(ride.destination_lng),
+        'fare_pyg': ride.total_fare_pyg,
+        'fare_brl': float(ride.total_fare_brl),
+        'fare_usd': float(ride.total_fare_usd),
+        'payment_method': ride.get_payment_method_display(),
+        'created_at': ride.created_at.strftime('%H:%M:%S')
+    })
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def list_active_rides(request):
+    rides = RideRequest.objects.filter(status__in=['PENDING', 'ACCEPTED', 'IN_PROGRESS']).order_by('-created_at')
+    data = []
+    for r in rides:
+        data.append({
+            'ride_id': r.id,
+            'passenger': r.passenger.name if r.passenger else "Pasajero",
+            'passenger_phone': r.passenger.phone if r.passenger else "",
+            'driver': r.driver.name if r.driver else "Sin asignar",
+            'origin': r.origin_address,
+            'destination': r.destination_address,
+            'fare_pyg': r.total_fare_pyg,
+            'status': r.get_status_display(),
+            'raw_status': r.status,
+            'created_at': r.created_at.strftime('%d/%m %H:%M:%S')
+        })
+    return Response(data)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -373,6 +434,7 @@ def rate_ride(request, ride_id):
     })
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def get_dashboard_stats(request):
     total_rides = RideRequest.objects.count()
     completed_rides = RideRequest.objects.filter(status='COMPLETED').count()

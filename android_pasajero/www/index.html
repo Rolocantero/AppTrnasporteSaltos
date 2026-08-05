@@ -581,6 +581,7 @@
                     return;
                 }
                 currentRideId = data.ride_id;
+                localStorage.setItem('activePassengerRideId', currentRideId);
                 title.innerText = "Buscando Conductor Cercano...";
                 desc.innerHTML = `Viaje <strong>#${data.ride_id}</strong> registrado.<br>Esperando que un chófer acepte en Saltos del Guairá...`;
                 
@@ -652,10 +653,14 @@
             .then(res => res.json())
             .then(data => {
                 alert("¡Gracias por calificar a tu conductor!");
+                localStorage.removeItem('activePassengerRideId');
+                currentRideId = null;
                 document.getElementById('ratingModal').style.display = 'none';
                 document.getElementById('statusOverlay').style.display = 'none';
             })
             .catch(err => {
+                localStorage.removeItem('activePassengerRideId');
+                currentRideId = null;
                 document.getElementById('ratingModal').style.display = 'none';
                 document.getElementById('statusOverlay').style.display = 'none';
             });
@@ -670,6 +675,9 @@
         function pollRideStatus(rideId) {
             if (!rideId) return;
             if (pollInterval) clearInterval(pollInterval);
+
+            const overlay = document.getElementById('statusOverlay');
+            overlay.style.display = 'flex';
             
             pollInterval = setInterval(() => {
                 fetch(`/api/rides/${rideId}/status/`)
@@ -677,6 +685,15 @@
                     .then(data => {
                         const title = document.getElementById('statusTitle');
                         const desc = document.getElementById('statusDesc');
+
+                        if (data.status === 'CANCELLED') {
+                            clearInterval(pollInterval);
+                            localStorage.removeItem('activePassengerRideId');
+                            currentRideId = null;
+                            overlay.style.display = 'none';
+                            alert("El viaje fue cancelado.");
+                            return;
+                        }
 
                         if (data.status === 'ACCEPTED' || data.status === 'IN_PROGRESS') {
                             const drvPhone = data.driver_phone || '+595981123456';
@@ -725,6 +742,7 @@
                             document.querySelector('.spinner').style.borderColor = '#00c853';
                         } else if (data.status === 'COMPLETED') {
                             clearInterval(pollInterval);
+                            localStorage.removeItem('activePassengerRideId');
                             setRating(5);
                             document.getElementById('ratingModal').style.display = 'flex';
                         }
@@ -733,13 +751,28 @@
         }
 
         function cancelSearch() {
+            if (!confirm("¿Deseas cancelar esta solicitud de viaje?")) return;
             if (pollInterval) clearInterval(pollInterval);
+            if (currentRideId) {
+                fetch(`/api/rides/${currentRideId}/status/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'CANCELLED' })
+                }).catch(e => {});
+            }
+            localStorage.removeItem('activePassengerRideId');
+            currentRideId = null;
             document.getElementById('statusOverlay').style.display = 'none';
         }
 
         window.onload = function() {
             initMap();
             recalculateQuote();
+            const savedRideId = localStorage.getItem('activePassengerRideId');
+            if (savedRideId) {
+                currentRideId = parseInt(savedRideId, 10);
+                pollRideStatus(currentRideId);
+            }
         };
     </script>
 </body>

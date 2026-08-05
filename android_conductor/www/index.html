@@ -418,6 +418,7 @@
                     document.getElementById('driverNameTitle').innerText = data.driver_name;
                     document.getElementById('driverVehicleSub').innerText = data.vehicle;
                     updateCarMarkerName(data.driver_name);
+                    checkDriverActiveRide();
 
                     // Sincronizar barra principal (MISMO VALOR REAL DE LA BASE DE DATOS)
                     const todayPyg = (data.today_earnings_pyg || 0);
@@ -733,6 +734,84 @@
             window.open(url, '_blank');
         }
 
+        function checkDriverActiveRide() {
+            if (!currentDriverId) return;
+            fetch(`/api/driver/${currentDriverId}/active_ride/`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.active_ride) {
+                        renderActiveRideCard(data);
+                    }
+                })
+                .catch(err => {});
+        }
+
+        function renderActiveRideCard(data) {
+            activeRideId = data.ride_id;
+            localStorage.setItem('activeDriverRideId', activeRideId);
+
+            const oLat = data.origin_lat || -24.056;
+            const oLng = data.origin_lng || -54.306;
+            const dLat = data.destination_lat || -24.082;
+            const dLng = data.destination_lng || -54.256;
+            const farePYG = data.fare_pyg || 0;
+            const fareBRL = data.fare_brl || 0;
+
+            drawRouteOnMap(oLat, oLng, dLat, dLng, data.origin_address || 'Origen', data.destination_address || 'Destino');
+
+            const container = document.getElementById('ridesContainer');
+            const pPhone = data.passenger_phone || '+595981123456';
+            const pName = data.passenger_name || 'Pasajero';
+            const waMsg = encodeURIComponent(`Hola ${pName}, soy tu chofer de ViajaYa para el viaje #${data.ride_id}. Estoy en camino a buscarte.`);
+            const waUrl = `https://wa.me/${pPhone.replace(/[^0-9]/g, '')}?text=${waMsg}`;
+            const telUrl = `tel:${pPhone}`;
+
+            const isStarted = data.status === 'IN_PROGRESS';
+
+            container.innerHTML = `
+                <div class="ride-card" id="card-ride-${data.ride_id}" style="border-color: #00c853;">
+                    <div class="ride-header">
+                        <div>
+                            <div style="font-weight: 700; font-size: 1.05rem; color: #00c853;">🚖 VIAJE EN CURSO #${data.ride_id}</div>
+                            <div style="font-size: 0.8rem; color: #94a3b8;">Pasajero: <strong>${pName}</strong></div>
+                        </div>
+                        <div class="fare-badge">₲ ${farePYG.toLocaleString('es-PY')}</div>
+                    </div>
+
+                    <div style="font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px; margin: 4px 0;">
+                        <div>📍 <strong>Origen:</strong> ${data.origin_address || 'Origen'}</div>
+                        <div>🏁 <strong>Destino:</strong> ${data.destination_address || 'Destino'}</div>
+                        <div>💵 <strong>Pago:</strong> ${data.payment_method || 'Efectivo'}</div>
+                    </div>
+
+                    <!-- Botones de Comunicación con Pasajero -->
+                    <div style="display: flex; gap: 6px; margin: 6px 0;">
+                        <a href="${waUrl}" target="_blank" style="flex:1; background:#25d366; color:#fff; padding:8px; border-radius:8px; font-weight:bold; text-decoration:none; font-size:0.78rem; text-align:center;">💬 WhatsApp</a>
+                        <a href="${telUrl}" style="flex:1; background:#2563eb; color:#fff; padding:8px; border-radius:8px; font-weight:bold; text-decoration:none; font-size:0.78rem; text-align:center;">📞 Llamar</a>
+                    </div>
+
+                    <!-- Botones de Navegación GPS Externa -->
+                    <div style="display: flex; flex-direction: column; gap: 6px; margin: 6px 0;">
+                        <div style="font-size: 0.75rem; color: #38bdf8; font-weight: 600;">🗺️ ABRIR EN GOOGLE MAPS GPS:</div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn-accept" style="background: #ea4335; color: #fff; font-size: 0.78rem; padding: 7px 8px; flex: 1;" onclick="navigateToPickup(${oLat}, ${oLng})">📍 Ir a Buscar</button>
+                            <button class="btn-accept" style="background: #2563eb; color: #fff; font-size: 0.78rem; padding: 7px 8px; flex: 1;" onclick="navigateFullRoute(${oLat}, ${oLng}, ${dLat}, ${dLng})">🏁 Ruta Destino</button>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 6px; margin: 6px 0;">
+                        <button onclick="triggerDriverSOS(${data.ride_id})" style="flex: 1; background:#dc2626; color:#fff; border:none; padding:7px; border-radius:8px; font-weight:bold; font-size:0.75rem; cursor:pointer;">🚨 SOS Emergencia</button>
+                        <button onclick="cancelActiveRide(${data.ride_id})" style="flex: 1; background:rgba(239, 68, 68, 0.2); color:#ef4444; border:1px solid #ef4444; padding:7px; border-radius:8px; font-weight:bold; font-size:0.75rem; cursor:pointer;">❌ Cancelar Viaje</button>
+                    </div>
+
+                    <div class="btn-group" style="margin-top:8px;">
+                        <button class="btn-accept" id="btnStartRide" style="background: #2979ff; color: #fff;" onclick="updateStatus(${data.ride_id}, 'IN_PROGRESS', this)" ${isStarted ? 'disabled' : ''}>${isStarted ? '✅ EN VIAJE' : '▶️ INICIAR VIAJE'}</button>
+                        <button class="btn-accept" style="background: #00c853; color: #000;" onclick="completeRide(${data.ride_id}, ${farePYG}, ${fareBRL})">🏁 FINALIZAR Y COBRAR</button>
+                    </div>
+                </div>
+            `;
+        }
+
         function acceptRide(rideId, farePYG, fareBRL) {
             activeRideId = rideId;
             fetch(`/api/rides/${rideId}/accept/`, {
@@ -742,56 +821,7 @@
             })
             .then(res => res.json())
             .then(data => {
-                const oLat = data.origin_lat || -24.056;
-                const oLng = data.origin_lng || -54.306;
-                const dLat = data.destination_lat || -24.082;
-                const dLng = data.destination_lng || -54.256;
-
-                // Dibujar la ruta gráfica en el mapa del chofer
-                drawRouteOnMap(oLat, oLng, dLat, dLng, data.origin_address || 'Origen', data.destination_address || 'Destino');
-
-                const card = document.getElementById(`card-ride-${rideId}`);
-                if (card) {
-                    card.style.borderColor = '#00c853';
-                    const pPhone = data.passenger_phone || '+595981123456';
-                    const waMsg = encodeURIComponent(`Hola, soy tu chofer de ViajaYa para el viaje #${rideId}. Estoy en camino a buscarte.`);
-                    const waUrl = `https://wa.me/${pPhone.replace(/[^0-9]/g, '')}?text=${waMsg}`;
-                    const telUrl = `tel:${pPhone}`;
-
-                    card.innerHTML = `
-                        <div class="ride-header">
-                            <div>
-                                <div style="font-weight: 700; font-size: 1.05rem; color: #00c853;">🚖 VIAJE EN CURSO #${rideId}</div>
-                                <div style="font-size: 0.8rem; color: #94a3b8;">Navegación activa en mapa</div>
-                            </div>
-                            <div class="fare-badge">₲ ${farePYG.toLocaleString('es-PY')}</div>
-                        </div>
-
-                        <!-- Botones de Comunicación con Pasajero -->
-                        <div style="display: flex; gap: 6px; margin: 8px 0;">
-                            <a href="${waUrl}" target="_blank" style="flex:1; background:#25d366; color:#fff; padding:8px; border-radius:8px; font-weight:bold; text-decoration:none; font-size:0.78rem; text-align:center;">💬 WhatsApp Pasajero</a>
-                            <a href="${telUrl}" style="flex:1; background:#2563eb; color:#fff; padding:8px; border-radius:8px; font-weight:bold; text-decoration:none; font-size:0.78rem; text-align:center;">📞 Llamar Pasajero</a>
-                        </div>
-
-                        <!-- Botones de Navegación GPS Externa con Coordenadas Exactas -->
-                        <div style="display: flex; flex-direction: column; gap: 6px; margin: 6px 0;">
-                            <div style="font-size: 0.75rem; color: #38bdf8; font-weight: 600;">🗺️ ABRIR EN GOOGLE MAPS GPS:</div>
-                            <div style="display: flex; gap: 6px;">
-                                <button class="btn-accept" style="background: #ea4335; color: #fff; font-size: 0.78rem; padding: 7px 8px; flex: 1;" onclick="navigateToPickup(${oLat}, ${oLng})">📍 Ir a Buscar</button>
-                                <button class="btn-accept" style="background: #2563eb; color: #fff; font-size: 0.78rem; padding: 7px 8px; flex: 1;" onclick="navigateFullRoute(${oLat}, ${oLng}, ${dLat}, ${dLng})">🏁 Ruta Destino</button>
-                            </div>
-                        </div>
-
-                        <div style="margin: 6px 0;">
-                            <button onclick="triggerDriverSOS(${rideId})" style="width:100%; background:#dc2626; color:#fff; border:none; padding:7px; border-radius:8px; font-weight:bold; font-size:0.75rem; cursor:pointer;">🚨 SOS Emergencia (Pánico)</button>
-                        </div>
-
-                        <div class="btn-group" style="margin-top:8px;">
-                            <button class="btn-accept" style="background: #2979ff; color: #fff;" onclick="updateStatus(${rideId}, 'IN_PROGRESS', this)">▶️ INICIAR VIAJE</button>
-                            <button class="btn-accept" style="background: #00c853; color: #000;" onclick="completeRide(${rideId}, ${farePYG}, ${fareBRL})">🏁 FINALIZAR Y COBRAR</button>
-                        </div>
-                    `;
-                }
+                checkDriverActiveRide();
             })
             .catch(err => {
                 activeRideId = null;
@@ -814,6 +844,24 @@
             });
         }
 
+        function cancelActiveRide(rideId) {
+            if (!confirm("¿Estás seguro de cancelar este viaje en curso?")) return;
+            fetch(`/api/rides/${rideId}/status/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'CANCELLED' })
+            })
+            .then(res => res.json())
+            .then(data => {
+                activeRideId = null;
+                localStorage.removeItem('activeDriverRideId');
+                clearRouteOnMap();
+                alert("Viaje cancelado exitosamente.");
+                document.getElementById('ridesContainer').innerHTML = '';
+                fetchPendingRides();
+            });
+        }
+
         function completeRide(rideId, farePYG, fareBRL) {
             fetch(`/api/rides/${rideId}/status/`, {
                 method: 'POST',
@@ -823,13 +871,10 @@
             .then(res => res.json())
             .then(data => {
                 activeRideId = null;
+                localStorage.removeItem('activeDriverRideId');
                 clearRouteOnMap();
                 alert(`🎉 ¡Viaje #${rideId} completado y cobrado con éxito!`);
-                
-                // Cargar inmediatamente métricas reales sincronizadas desde PostgreSQL
                 loadDriverReports();
-
-                // Remover la tarjeta del viaje completado
                 const card = document.getElementById(`card-ride-${rideId}`);
                 if (card) card.remove();
             })
