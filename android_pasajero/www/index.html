@@ -334,6 +334,27 @@
         <button onclick="cancelSearch()" style="margin-top: 30px; background: transparent; border: 1px solid #ef4444; color: #ef4444; padding: 10px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;">Cancelar Solicitud</button>
     </div>
 
+    <!-- Modal Calificación con 5 Estrellas -->
+    <div id="ratingModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); z-index:99999; padding:20px; align-items:center; justify-content:center;">
+        <div style="background:#1e293b; border:1px solid #334155; border-radius:16px; padding:24px; width:100%; max-width:380px; text-align:center; color:#fff;">
+            <div style="font-size:2.5rem; margin-bottom:8px;">🏁</div>
+            <h3 style="color:#00c853; margin-bottom:6px; font-size:1.2rem;">¡Llegaste a tu Destino!</h3>
+            <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:16px;">¿Cómo fue tu experiencia de viaje?</p>
+            
+            <div id="starContainer" style="font-size:2rem; cursor:pointer; margin-bottom:16px; display:flex; justify-content:center; gap:8px;">
+                <span onclick="setRating(1)">★</span>
+                <span onclick="setRating(2)">★</span>
+                <span onclick="setRating(3)">★</span>
+                <span onclick="setRating(4)">★</span>
+                <span onclick="setRating(5)">★</span>
+            </div>
+
+            <textarea id="ratingComment" placeholder="Comentario opcional sobre el chofer o el auto..." style="width:100%; padding:10px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff; font-size:0.8rem; height:60px; margin-bottom:14px; outline:none; resize:none;"></textarea>
+
+            <button onclick="submitRating()" style="width:100%; padding:12px; background:#00c853; border:none; color:#000; font-weight:800; border-radius:10px; font-size:0.95rem; cursor:pointer;">ENVIAR CALIFICACIÓN</button>
+        </div>
+    </div>
+
     <script>
         let map, originMarker, destMarker, routeLine;
         let selectedPayment = 'CASH_PYG';
@@ -572,28 +593,6 @@
             });
         }
 
-    <!-- Modal Calificación con 5 Estrellas -->
-    <div id="ratingModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); z-index:99999; padding:20px; align-items:center; justify-content:center;">
-        <div style="background:#1e293b; border:1px solid #334155; border-radius:16px; padding:24px; width:100%; max-width:380px; text-align:center; color:#fff;">
-            <div style="font-size:2.5rem; margin-bottom:8px;">🏁</div>
-            <h3 style="color:#00c853; margin-bottom:6px; font-size:1.2rem;">¡Llegaste a tu Destino!</h3>
-            <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:16px;">¿Cómo fue tu experiencia de viaje?</p>
-            
-            <div id="starContainer" style="font-size:2rem; cursor:pointer; margin-bottom:16px; display:flex; justify-content:center; gap:8px;">
-                <span onclick="setRating(1)">★</span>
-                <span onclick="setRating(2)">★</span>
-                <span onclick="setRating(3)">★</span>
-                <span onclick="setRating(4)">★</span>
-                <span onclick="setRating(5)">★</span>
-            </div>
-
-            <textarea id="ratingComment" placeholder="Comentario opcional sobre el chofer o el auto..." style="width:100%; padding:10px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff; font-size:0.8rem; height:60px; margin-bottom:14px; outline:none; resize:none;"></textarea>
-
-            <button onclick="submitRating()" style="width:100%; padding:12px; background:#00c853; border:none; color:#000; font-weight:800; border-radius:10px; font-size:0.95rem; cursor:pointer;">ENVIAR CALIFICACIÓN</button>
-        </div>
-    </div>
-
-    <script style="display:none;">
         let selectedStars = 5;
         let activeDiscountPercent = 0;
         let driverMarker = null;
