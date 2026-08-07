@@ -219,11 +219,11 @@
                 </div>
             </div>
         </div>
-        <div style="display: flex; gap: 6px; align-items: center;">
-            <button onclick="openReportsModal()" style="background: rgba(41, 121, 255, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 5px 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer;">📊 Mis Reportes</button>
-            <div class="switch-container" onclick="toggleOnline()">
+        <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-end; justify-content: center; min-width: 125px;">
+            <button onclick="openReportsModal()" style="background: rgba(41, 121, 255, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; cursor: pointer; width: 100%; text-align: center;">📊 Mis Reportes</button>
+            <div class="switch-container" id="statusSwitchPill" onclick="toggleOnline()" style="display: flex; align-items: center; justify-content: center; gap: 6px; background: rgba(220,38,38,0.2); border: 1.5px solid #dc2626; padding: 4px 8px; border-radius: 20px; cursor: pointer; width: 100%; transition: all 0.3s ease;">
                 <div class="status-dot" id="statusDot"></div>
-                <span id="statusText" style="font-size: 0.8rem; font-weight: 600;">OFF</span>
+                <span id="statusText" style="font-size: 0.75rem; font-weight: 800; color: #ef4444;">🔴 DESCONECTADO</span>
             </div>
         </div>
     </div>
@@ -691,12 +691,18 @@
             isOnline = online;
             const dot = document.getElementById('statusDot');
             const txt = document.getElementById('statusText');
+            const pill = document.getElementById('statusSwitchPill');
 
             if (isOnline) {
                 if (dot) dot.classList.add('online');
                 if (txt) {
-                    txt.innerText = "EN LÍNEA";
+                    txt.innerText = "🟢 EN LÍNEA";
                     txt.style.color = "#00c853";
+                }
+                if (pill) {
+                    pill.style.background = "rgba(0, 200, 83, 0.2)";
+                    pill.style.borderColor = "#00c853";
+                    pill.style.boxShadow = "0 0 10px rgba(0, 200, 83, 0.4)";
                 }
                 
                 if (navigator.geolocation && !gpsWatchId) {
@@ -712,8 +718,13 @@
             } else {
                 if (dot) dot.classList.remove('online');
                 if (txt) {
-                    txt.innerText = "DESCONECTADO";
-                    txt.style.color = "#ffffff";
+                    txt.innerText = "🔴 DESCONECTADO";
+                    txt.style.color = "#ef4444";
+                }
+                if (pill) {
+                    pill.style.background = "rgba(220, 38, 38, 0.2)";
+                    pill.style.borderColor = "#dc2626";
+                    pill.style.boxShadow = "none";
                 }
 
                 if (gpsWatchId && navigator.geolocation) {
