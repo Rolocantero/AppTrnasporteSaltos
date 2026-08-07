@@ -33,6 +33,10 @@ class FareConfig(models.Model):
         default=15.00, 
         verbose_name="Comisión App (%)"
     )
+    mult_standard = models.DecimalField(max_digits=4, decimal_places=2, default=1.00, verbose_name="Multiplicador Estándar")
+    mult_executive = models.DecimalField(max_digits=4, decimal_places=2, default=1.30, verbose_name="Multiplicador Ejecutivo")
+    mult_delivery = models.DecimalField(max_digits=4, decimal_places=2, default=1.15, verbose_name="Multiplicador Envíos")
+    mult_moto = models.DecimalField(max_digits=4, decimal_places=2, default=0.65, verbose_name="Multiplicador Moto")
     is_active = models.BooleanField(default=True, verbose_name="Tarifa Activa")
 
     class Meta:
@@ -123,6 +127,13 @@ class Passenger(models.Model):
 
 
 class RideRequest(models.Model):
+    CATEGORY_CHOICES = [
+        ('STANDARD', 'Estándar'),
+        ('EXECUTIVE', 'Ejecutivo / XL'),
+        ('DELIVERY', 'Envíos / Paquetes'),
+        ('MOTO', 'Moto-Taxi'),
+    ]
+
     STATUS_CHOICES = [
         ('PENDING', 'Buscando Conductor'),
         ('ACCEPTED', 'Conductor En Camino'),
@@ -141,6 +152,7 @@ class RideRequest(models.Model):
 
     passenger = models.ForeignKey(Passenger, on_delete=models.CASCADE, related_name='rides')
     driver = models.ForeignKey(Driver, on_delete=models.SET_NULL, null=True, blank=True, related_name='rides')
+    service_category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='STANDARD', verbose_name="Categoría de Servicio")
     
     origin_address = models.CharField(max_length=255, verbose_name="Origen")
     origin_lat = models.FloatField(verbose_name="Latitud Origen")

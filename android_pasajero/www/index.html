@@ -750,7 +750,12 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`Servidor devolvió respuesta no válida (Código ${res.status}).`);
+                }
+                return res.json();
+            })
             .then(data => {
                 if (!data || !data.ride_id) {
                     alert("⚠️ No se pudo registrar la solicitud en el servidor. Inténtalo de nuevo.");
