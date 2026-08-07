@@ -408,13 +408,24 @@
             currentDriverId = localStorage.getItem('activeDriverId');
             if (currentDriverId) {
                 closeLoginModal();
+                try {
+                    const cached = JSON.parse(localStorage.getItem('driverProfileData'));
+                    if (cached && cached.name) {
+                        document.getElementById('driverNameTitle').innerText = cached.name;
+                        document.getElementById('driverVehicleSub').innerText = cached.vehicle;
+                        updateCarMarkerName(cached.name);
+                    }
+                } catch(e){}
                 loadDriverReports();
             } else {
-                openLoginModal();
+                openLoginModal(true);
             }
         }
 
-        function openLoginModal() {
+        function openLoginModal(force = false) {
+            if (!force && localStorage.getItem('activeDriverId')) {
+                return;
+            }
             document.getElementById('driverLoginModal').style.display = 'flex';
         }
 
@@ -439,6 +450,7 @@
                 } else {
                     currentDriverId = data.driver_id;
                     localStorage.setItem('activeDriverId', currentDriverId);
+                    localStorage.setItem('driverProfileData', JSON.stringify({ name: data.name, vehicle: data.vehicle_model }));
                     alert("Bienvenido " + data.name + " (" + data.vehicle_model + ")");
                     closeLoginModal();
                     loadDriverProfile();
@@ -459,28 +471,39 @@
         function logoutDriver() {
             if (!confirm("¿Deseas cerrar sesión en este dispositivo?")) return;
             localStorage.removeItem('activeDriverId');
+            localStorage.removeItem('driverProfileData');
             currentDriverId = null;
             document.getElementById('driverNameTitle').innerText = "Inicia Sesión";
             document.getElementById('driverVehicleSub').innerText = "Ingresa tu cuenta para operar";
             document.getElementById('totalPYG').innerText = "₲ 0";
             document.getElementById('totalBRL').innerText = "R$ 0.00";
             document.getElementById('completedCount').innerText = "0";
-            openLoginModal();
+            openLoginModal(true);
         }
 
         function loadDriverReports() {
+            currentDriverId = localStorage.getItem('activeDriverId');
             if (!currentDriverId) {
-                openLoginModal();
+                openLoginModal(true);
                 return;
             }
             fetch(`/api/driver/stats/${currentDriverId}/`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.error) {
-                        openLoginModal();
+                        if (data.error.includes("no encontrado")) {
+                            localStorage.removeItem('activeDriverId');
+                            localStorage.removeItem('driverProfileData');
+                            currentDriverId = null;
+                            openLoginModal(true);
+                        }
                         return;
                     }
-                    // Actualizar datos del header del chofer activo
+                    closeLoginModal();
+
+                    const profileData = { name: data.driver_name, vehicle: data.vehicle };
+                    localStorage.setItem('driverProfileData', JSON.stringify(profileData));
+
                     document.getElementById('driverNameTitle').innerText = data.driver_name;
                     document.getElementById('driverVehicleSub').innerText = data.vehicle;
                     updateCarMarkerName(data.driver_name);
