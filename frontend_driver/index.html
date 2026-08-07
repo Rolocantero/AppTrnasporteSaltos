@@ -423,7 +423,9 @@
             } catch(e){}
 
             loadDriverReports();
-            setDriverOnlineState(true);
+            const savedState = localStorage.getItem('driverIsOnline');
+            const shouldBeOnline = savedState !== 'false';
+            setDriverOnlineState(shouldBeOnline);
         }
 
         function openLoginModal(force = false) {
@@ -689,6 +691,7 @@
 
         function setDriverOnlineState(online) {
             isOnline = online;
+            localStorage.setItem('driverIsOnline', isOnline ? 'true' : 'false');
             const dot = document.getElementById('statusDot');
             const txt = document.getElementById('statusText');
             const pill = document.getElementById('statusSwitchPill');
@@ -890,13 +893,29 @@
         }
 
         function navigateToPickup(oLat, oLng) {
-            const url = `https://www.google.com/maps/dir/?api=1&destination=${oLat},${oLng}&travelmode=driving`;
-            window.open(url, '_blank');
+            const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${oLat},${oLng}&travelmode=driving`;
+            try {
+                if (window.cordova && window.cordova.InAppBrowser) {
+                    window.cordova.InAppBrowser.open(mapsUrl, '_system');
+                } else {
+                    window.location.href = mapsUrl;
+                }
+            } catch(e) {
+                window.location.href = mapsUrl;
+            }
         }
 
         function navigateFullRoute(oLat, oLng, dLat, dLng) {
-            const url = `https://www.google.com/maps/dir/?api=1&origin=${oLat},${oLng}&destination=${dLat},${dLng}&travelmode=driving`;
-            window.open(url, '_blank');
+            const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${oLat},${oLng}&destination=${dLat},${dLng}&travelmode=driving`;
+            try {
+                if (window.cordova && window.cordova.InAppBrowser) {
+                    window.cordova.InAppBrowser.open(mapsUrl, '_system');
+                } else {
+                    window.location.href = mapsUrl;
+                }
+            } catch(e) {
+                window.location.href = mapsUrl;
+            }
         }
 
         function checkDriverActiveRide() {
@@ -959,8 +978,8 @@
                     <div style="display: flex; flex-direction: column; gap: 6px; margin: 6px 0;">
                         <div style="font-size: 0.75rem; color: #38bdf8; font-weight: 600;">🗺️ ABRIR EN GOOGLE MAPS GPS:</div>
                         <div style="display: flex; gap: 6px;">
-                            <button class="btn-accept" style="background: #ea4335; color: #fff; font-size: 0.78rem; padding: 7px 8px; flex: 1;" onclick="navigateToPickup(${oLat}, ${oLng})">📍 Ir a Buscar</button>
-                            <button class="btn-accept" style="background: #2563eb; color: #fff; font-size: 0.78rem; padding: 7px 8px; flex: 1;" onclick="navigateFullRoute(${oLat}, ${oLng}, ${dLat}, ${dLng})">🏁 Ruta Destino</button>
+                            <a href="https://www.google.com/maps/dir/?api=1&destination=${oLat},${oLng}&travelmode=driving" target="_blank" style="background: #ea4335; color: #fff; font-size: 0.78rem; padding: 9px 8px; flex: 1; text-decoration: none; border-radius: 10px; font-weight: 800; text-align: center; display: inline-block;">📍 Ir a Buscar GPS</a>
+                            <a href="https://www.google.com/maps/dir/?api=1&origin=${oLat},${oLng}&destination=${dLat},${dLng}&travelmode=driving" target="_blank" style="background: #2563eb; color: #fff; font-size: 0.78rem; padding: 9px 8px; flex: 1; text-decoration: none; border-radius: 10px; font-weight: 800; text-align: center; display: inline-block;">🏁 Ruta Destino GPS</a>
                         </div>
                     </div>
 
