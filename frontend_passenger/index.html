@@ -461,26 +461,47 @@
         }
 
         function useCurrentGPS() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(pos => {
+            if ("geolocation" in navigator) {
+                const handleSuccess = (pos) => {
                     const lat = pos.coords.latitude;
                     const lng = pos.coords.longitude;
                     const originSelect = document.getElementById('originSelect');
+
+                    if (map) {
+                        map.setView([lat, lng], 15);
+                        if (userGpsMarker) {
+                            userGpsMarker.setLatLng([lat, lng]);
+                        } else {
+                            const gpsIcon = L.divIcon({
+                                className: 'user-gps-pulse',
+                                html: `<div style="background:#2563eb; color:#fff; padding:6px 12px; border-radius:20px; font-weight:bold; font-size:11px; border:2px solid white; box-shadow:0 0 15px rgba(37,99,235,0.8);">🎯 Mi Ubicación GPS</div>`
+                            });
+                            userGpsMarker = L.marker([lat, lng], { icon: gpsIcon }).addTo(map);
+                        }
+                    }
                     
-                    // Añadir opción personalizada de GPS
-                    const option = document.createElement('option');
-                    option.value = `${lat},${lng}`;
-                    option.setAttribute('data-name', 'Mi Ubicación Actual (GPS)');
-                    option.innerText = '🎯 Origen: Mi Ubicación GPS';
-                    option.selected = true;
-                    originSelect.insertBefore(option, originSelect.firstChild);
+                    const gpsVal = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+                    let existingOpt = Array.from(originSelect.options).find(o => o.value === gpsVal);
+
+                    if (!existingOpt) {
+                        const option = document.createElement('option');
+                        option.value = gpsVal;
+                        option.setAttribute('data-name', 'Mi Ubicación Actual (GPS)');
+                        option.innerText = '🎯 Origen: Mi Ubicación GPS';
+                        option.selected = true;
+                        originSelect.insertBefore(option, originSelect.firstChild);
+                    } else {
+                        existingOpt.selected = true;
+                    }
                     
                     recalculateQuote();
-                }, () => {
-                    alert("No se pudo obtener el GPS del dispositivo. Por favor selecciona una ubicación en la lista.");
-                });
-            } else {
-                alert("Tu navegador no soporta GPS.");
+                };
+
+                navigator.geolocation.getCurrentPosition(handleSuccess, () => {
+                    navigator.geolocation.getCurrentPosition(handleSuccess, (err) => {
+                        console.log("GPS no disponible o denegado por el usuario.");
+                    }, { enableHighAccuracy: false, timeout: 8000 });
+                }, { enableHighAccuracy: true, timeout: 5000 });
             }
         }
 

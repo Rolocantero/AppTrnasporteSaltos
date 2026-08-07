@@ -534,6 +534,7 @@
             if (plateFile) formData.append('photo_license_plate', plateFile);
             if (vehFile) formData.append('photo_vehicle', vehFile);
 
+            const drvName = document.getElementById('newDrvName').value || 'Conductor';
             const hasDocs = ciFile || judFile || polFile || plateFile || vehFile;
 
             fetch('https://apptrnasportesaltos.onrender.com/api/drivers/create/', {
