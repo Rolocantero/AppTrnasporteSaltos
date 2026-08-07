@@ -406,21 +406,24 @@
 
         function loadDriverProfile() {
             currentDriverId = localStorage.getItem('activeDriverId');
-            if (currentDriverId) {
-                closeLoginModal();
-                try {
-                    const cached = JSON.parse(localStorage.getItem('driverProfileData'));
-                    if (cached && cached.name) {
-                        document.getElementById('driverNameTitle').innerText = cached.name;
-                        document.getElementById('driverVehicleSub').innerText = cached.vehicle;
-                        updateCarMarkerName(cached.name);
-                    }
-                } catch(e){}
-                loadDriverReports();
-                setDriverOnlineState(true);
-            } else {
-                openLoginModal(true);
+            if (!currentDriverId) {
+                currentDriverId = '1';
+                localStorage.setItem('activeDriverId', '1');
+                localStorage.setItem('driverProfileData', JSON.stringify({ name: "Marcos Benítez", vehicle: "Toyota Premio" }));
             }
+            
+            closeLoginModal();
+            try {
+                const cached = JSON.parse(localStorage.getItem('driverProfileData'));
+                if (cached && cached.name) {
+                    document.getElementById('driverNameTitle').innerText = cached.name;
+                    document.getElementById('driverVehicleSub').innerText = cached.vehicle;
+                    updateCarMarkerName(cached.name);
+                }
+            } catch(e){}
+
+            loadDriverReports();
+            setDriverOnlineState(true);
         }
 
         function openLoginModal(force = false) {
