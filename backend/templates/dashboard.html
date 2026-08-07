@@ -621,6 +621,8 @@
                                         maintBadge = '<span class="badge bg-warning text-dark">🟡 Próximo Service</span>';
                                     }
 
+                                    let onlineBadge = d.is_online ? '<span class="badge bg-success" style="font-size:0.7rem;">🟢 En Línea</span>' : '<span class="badge bg-secondary" style="font-size:0.7rem;">⚪ Desconectado</span>';
+
                                     let docsBtns = [];
                                     if (d.photo_ci) docsBtns.push(`<a href="${d.photo_ci}" target="_blank" class="badge bg-info text-dark text-decoration-none">🪪 CI</a>`);
                                     if (d.photo_judicial) docsBtns.push(`<a href="${d.photo_judicial}" target="_blank" class="badge bg-info text-dark text-decoration-none">⚖️ Jud</a>`);
@@ -635,6 +637,7 @@
                                                 <a href="javascript:void(0)" onclick="openDriverDocsModal(${d.id})" class="text-light fw-bold text-decoration-none" title="Ver / Cargar Documentos">
                                                     ${d.name} 📝
                                                 </a> 
+                                                ${onlineBadge}
                                                 <span class="badge bg-warning text-dark" style="font-size:0.75rem;">⭐ ${d.rating_avg}</span><br>
                                                 <small class="text-secondary">📱 ${d.phone} | Doc: ${d.document_id || 'N/A'}</small>
                                             </td>
@@ -655,6 +658,7 @@
                                     `;
                                 }).join('');
                             }
+                            loadActiveRides();
                         })
                         .catch(err => console.log("Error cargando flota:", err));
 

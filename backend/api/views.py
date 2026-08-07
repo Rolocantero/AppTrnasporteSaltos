@@ -879,6 +879,7 @@ def admin_fleet_stats(request):
             'license_plate': d.license_plate,
             'rating_avg': d.rating_avg,
             'is_verified': d.is_verified,
+            'is_online': d.is_online,
             'completed_rides': completed.count(),
             'total_km_driven': round(d.total_km_driven, 1),
             'km_since_service': round(km_since_service, 1),
