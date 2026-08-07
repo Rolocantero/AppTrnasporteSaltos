@@ -482,11 +482,25 @@ def register_driver(request):
     data = request.data
     files = request.FILES
 
+    document_id = str(data.get('document_id', '')).strip()
+    phone = str(data.get('phone', '')).strip()
+
+    # Validar que no exista un conductor con ese CI / Documento o Celular
+    if document_id:
+        existing_doc = Driver.objects.filter(document_id__iexact=document_id).first()
+        if existing_doc:
+            return Response({'error': f'⚠️ La Cédula / Documento N° "{document_id}" ya se encuentra cargada en la base de datos por {existing_doc.name}. Solo podrá volverse a registrar si el Administrador elimina ese registro.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if phone:
+        existing_phone = Driver.objects.filter(phone__iexact=phone).first()
+        if existing_phone:
+            return Response({'error': f'⚠️ El número de celular "{phone}" ya pertenece a un conductor registrado ({existing_phone.name}).'}, status=status.HTTP_400_BAD_REQUEST)
+
     driver = Driver.objects.create(
         name=data.get('name'),
-        phone=data.get('phone'),
+        phone=phone,
         country=data.get('country', 'PY'),
-        document_id=data.get('document_id', 'REG-APP-' + str(int(timezone.now().timestamp()))),
+        document_id=document_id or ('REG-APP-' + str(int(timezone.now().timestamp()))),
         vehicle_model=data.get('vehicle_model'),
         vehicle_color=data.get('vehicle_color', ''),
         license_plate=data.get('license_plate'),
