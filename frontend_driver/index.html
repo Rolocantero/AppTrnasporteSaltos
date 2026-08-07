@@ -484,22 +484,12 @@
 
         function loadDriverReports() {
             currentDriverId = localStorage.getItem('activeDriverId');
-            if (!currentDriverId) {
-                openLoginModal(true);
-                return;
-            }
+            if (!currentDriverId) return;
+
             fetch(`/api/driver/stats/${currentDriverId}/`)
                 .then(res => res.json())
                 .then(data => {
-                    if (data.error) {
-                        if (data.error.includes("no encontrado")) {
-                            localStorage.removeItem('activeDriverId');
-                            localStorage.removeItem('driverProfileData');
-                            currentDriverId = null;
-                            openLoginModal(true);
-                        }
-                        return;
-                    }
+                    if (!data || data.error) return;
                     closeLoginModal();
 
                     const profileData = { name: data.driver_name, vehicle: data.vehicle };
@@ -510,7 +500,6 @@
                     updateCarMarkerName(data.driver_name);
                     checkDriverActiveRide();
 
-                    // Sincronizar barra principal (MISMO VALOR REAL DE LA BASE DE DATOS)
                     const todayPyg = (data.today_earnings_pyg || 0);
                     const todayBrl = (data.today_earnings_brl || 0);
                     const todayCount = (data.today_rides_count || 0);
@@ -519,49 +508,53 @@
                     document.getElementById('totalBRL').innerText = `R$ ${todayBrl.toFixed(2)}`;
                     document.getElementById('completedCount').innerText = todayCount;
 
-                    // Sincronizar modal de reportes
                     document.getElementById('repToday').innerText = `₲ ${todayPyg.toLocaleString('es-PY')}`;
                     document.getElementById('repWeek').innerText = `₲ ${(data.week_earnings_pyg || 0).toLocaleString('es-PY')}`;
                     document.getElementById('repMonth').innerText = `₲ ${(data.month_earnings_pyg || 0).toLocaleString('es-PY')}`;
 
-                    const kmText = `${data.km_since_service} km desde el último service (${data.total_km_driven} km total)`;
-                    document.getElementById('maintKmText').innerText = kmText;
+                    const kmText = `${data.km_since_service || 0} km desde el último service (${data.total_km_driven || 0} km total)`;
+                    const elemKm = document.getElementById('maintKmText');
+                    if (elemKm) elemKm.innerText = kmText;
 
                     const badge = document.getElementById('maintBadge');
-                    if (data.service_status === 'URGENT') {
-                        badge.innerText = '🔴 SERVICE URGENTE';
-                        badge.style.background = '#991b1b';
-                        badge.style.color = '#fca5a5';
-                    } else if (data.service_status === 'WARNING') {
-                        badge.innerText = '🟡 Service Recomendado';
-                        badge.style.background = '#854d0e';
-                        badge.style.color = '#fde047';
-                    } else {
-                        badge.innerText = '🟢 Al Día';
-                        badge.style.background = '#166534';
-                        badge.style.color = '#4ade80';
+                    if (badge) {
+                        if (data.service_status === 'URGENT') {
+                            badge.innerText = '🔴 SERVICE URGENTE';
+                            badge.style.background = '#991b1b';
+                            badge.style.color = '#fca5a5';
+                        } else if (data.service_status === 'WARNING') {
+                            badge.innerText = '🟡 Service Recomendado';
+                            badge.style.background = '#854d0e';
+                            badge.style.color = '#fde047';
+                        } else {
+                            badge.innerText = '🟢 Al Día';
+                            badge.style.background = '#166534';
+                            badge.style.color = '#4ade80';
+                        }
                     }
 
                     const list = document.getElementById('repRidesList');
-                    if (!data.recent_rides || data.recent_rides.length === 0) {
-                        list.innerHTML = '<div style="text-align:center; padding:12px; color:#64748b; font-size:0.8rem;">No tienes viajes completados aún.</div>';
-                    } else {
-                        list.innerHTML = data.recent_rides.map(r => `
-                            <div style="background:#0f172a; border:1px solid #334155; border-radius:10px; padding:10px; font-size:0.8rem;">
-                                <div style="display:flex; justify-content:space-between; color:#38bdf8; font-weight:700;">
-                                    <span>👤 ${r.passenger}</span>
-                                    <span>₲ ${r.fare_pyg.toLocaleString('es-PY')}</span>
+                    if (list) {
+                        if (!data.recent_rides || data.recent_rides.length === 0) {
+                            list.innerHTML = '<div style="text-align:center; padding:12px; color:#64748b; font-size:0.8rem;">No tienes viajes completados aún.</div>';
+                        } else {
+                            list.innerHTML = data.recent_rides.map(r => `
+                                <div style="background:#0f172a; border:1px solid #334155; border-radius:10px; padding:10px; font-size:0.8rem;">
+                                    <div style="display:flex; justify-content:space-between; color:#38bdf8; font-weight:700;">
+                                        <span>👤 ${r.passenger}</span>
+                                        <span>₲ ${(r.fare_pyg || 0).toLocaleString('es-PY')}</span>
+                                    </div>
+                                    <div style="color:#94a3b8; font-size:0.75rem; margin-top:2px;">📍 ${r.origin} ➔ 🏁 ${r.destination}</div>
+                                    <div style="display:flex; justify-content:space-between; color:#64748b; font-size:0.7rem; margin-top:4px;">
+                                        <span>💳 ${r.payment_method}</span>
+                                        <span>📅 ${r.date}</span>
+                                    </div>
                                 </div>
-                                <div style="color:#94a3b8; font-size:0.75rem; margin-top:2px;">📍 ${r.origin} ➔ 🏁 ${r.destination}</div>
-                                <div style="display:flex; justify-content:space-between; color:#64748b; font-size:0.7rem; margin-top:4px;">
-                                    <span>💳 ${r.payment_method}</span>
-                                    <span>📅 ${r.date}</span>
-                                </div>
-                            </div>
-                        `).join('');
+                            `).join('');
+                        }
                     }
                 })
-                .catch(err => console.log("Error cargando reportes:", err));
+                .catch(err => console.log("Usando sesión cacheada de chofer."));
         }
 
         function resetServiceKm() {
