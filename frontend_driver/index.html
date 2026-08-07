@@ -417,6 +417,7 @@
                     }
                 } catch(e){}
                 loadDriverReports();
+                setDriverOnlineState(true);
             } else {
                 openLoginModal(true);
             }
@@ -690,41 +691,51 @@
             }).catch(e => {});
         }
 
-        function toggleOnline() {
-            isOnline = !isOnline;
+        function setDriverOnlineState(online) {
+            isOnline = online;
             const dot = document.getElementById('statusDot');
             const txt = document.getElementById('statusText');
 
             if (isOnline) {
-                dot.classList.add('online');
-                txt.innerText = "EN LÍNEA";
-                txt.style.color = "#00c853";
+                if (dot) dot.classList.add('online');
+                if (txt) {
+                    txt.innerText = "EN LÍNEA";
+                    txt.style.color = "#00c853";
+                }
                 
-                // Iniciar transmisión de GPS en tiempo real
-                if (navigator.geolocation) {
+                if (navigator.geolocation && !gpsWatchId) {
                     gpsWatchId = navigator.geolocation.watchPosition(pos => {
                         sendGPSLocation(pos.coords.latitude, pos.coords.longitude);
                     }, err => {}, { enableHighAccuracy: true });
                 }
 
-                // Iniciar polling para buscar viajes REALES pedidos desde el backend
                 fetchPendingRides();
-                pollInterval = setInterval(fetchPendingRides, 3000);
+                if (!pollInterval) {
+                    pollInterval = setInterval(fetchPendingRides, 3000);
+                }
             } else {
-                dot.classList.remove('online');
-                txt.innerText = "DESCONECTADO";
-                txt.style.color = "#ffffff";
+                if (dot) dot.classList.remove('online');
+                if (txt) {
+                    txt.innerText = "DESCONECTADO";
+                    txt.style.color = "#ffffff";
+                }
 
                 if (gpsWatchId && navigator.geolocation) {
                     navigator.geolocation.clearWatch(gpsWatchId);
                     gpsWatchId = null;
                 }
 
-                if (pollInterval) clearInterval(pollInterval);
+                if (pollInterval) {
+                    clearInterval(pollInterval);
+                    pollInterval = null;
+                }
                 document.getElementById('ridesContainer').innerHTML = '';
                 knownRides.clear();
-                activeRideId = null;
             }
+        }
+
+        function toggleOnline() {
+            setDriverOnlineState(!isOnline);
         }
 
         function fetchPendingRides() {
@@ -1010,6 +1021,11 @@
             })
             .catch(err => alert("Error al completar el viaje: " + err));
         }
+
+        window.onload = function() {
+            initMap();
+            loadDriverProfile();
+        };
     </script>
 </body>
 </html>
