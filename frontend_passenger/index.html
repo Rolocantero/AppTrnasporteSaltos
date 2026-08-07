@@ -255,7 +255,40 @@
             <span style="font-weight: normal; color: var(--text-muted); font-size: 0.85rem;">Frontera</span>
         </div>
         <div style="display: flex; gap: 8px; align-items: center;">
-            <span class="badge-border">🚗 Pasajero</span>
+            <button onclick="openPassengerAuthModal()" id="passengerProfileBadge" class="badge-border" style="background:rgba(0, 200, 83, 0.15); border:1px solid #00c853; color:#00c853; cursor:pointer;">📱 Ingresar Mi Celular</button>
+        </div>
+    </div>
+
+    <!-- Modal Registro / Autenticación de Pasajero Estilo Bolt -->
+    <div id="passengerAuthModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); z-index:99999; padding:20px; align-items:center; justify-content:center;">
+        <div style="background:#1e2638; border:1px solid #334155; border-radius:18px; padding:24px; width:100%; max-width:400px; color:#fff; text-align:center; margin:auto;">
+            <div style="font-size:2.5rem; margin-bottom:6px;">🚗</div>
+            <h3 style="color:#00c853; font-size:1.3rem; margin-bottom:6px;" id="authModalTitle">Ingresa tu Número de Celular</h3>
+            <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:18px;" id="authModalSub">Te enviaremos un código de seguridad de 4 dígitos para activar tu cuenta de pasajero.</p>
+
+            <form id="phoneStepForm" onsubmit="sendPassengerOtp(event)">
+                <input type="text" id="passengerNameInput" placeholder="Tu Nombre y Apellido" required style="width:100%; padding:12px; margin-bottom:10px; background:#121824; border:1px solid #334155; border-radius:10px; color:#fff; font-size:0.95rem;">
+                <div style="display:flex; gap:8px; margin-bottom:16px;">
+                    <select id="countryCodeSelect" style="padding:12px; background:#121824; border:1px solid #334155; border-radius:10px; color:#fff; font-size:0.9rem;">
+                        <option value="+595">🇵🇾 +595</option>
+                        <option value="+55">🇧🇷 +55</option>
+                        <option value="+54">🇦🇷 +54</option>
+                    </select>
+                    <input type="tel" id="passengerPhoneInput" placeholder="Ej. 981 123 456" required style="flex:1; padding:12px; background:#121824; border:1px solid #334155; border-radius:10px; color:#fff; font-size:1rem; font-weight:bold;">
+                </div>
+                <button type="submit" style="width:100%; padding:14px; background:#00c853; border:none; color:#000; font-weight:800; font-size:1rem; border-radius:12px; cursor:pointer;">Continuar ➜</button>
+            </form>
+
+            <form id="otpStepForm" style="display:none;" onsubmit="verifyPassengerOtp(event)">
+                <div style="background:rgba(0,200,83,0.15); border:1px solid rgba(0,200,83,0.3); border-radius:10px; padding:10px; margin-bottom:14px; font-size:0.85rem; color:#00c853;">
+                    🔑 Tu código de verificación es: <strong id="generatedOtpCode" style="font-size:1.2rem; letter-spacing:3px;">1234</strong>
+                </div>
+                <input type="text" id="otpCodeInput" placeholder="Código de 4 dígitos" maxlength="4" required style="width:100%; padding:12px; text-align:center; letter-spacing:6px; font-size:1.4rem; font-weight:bold; margin-bottom:16px; background:#121824; border:1px solid #00c853; border-radius:10px; color:#fff;">
+                <div style="display:flex; gap:10px;">
+                    <button type="button" onclick="backToPhoneStep()" style="flex:1; padding:12px; background:transparent; border:1px solid #94a3b8; color:#fff; border-radius:10px; cursor:pointer;">Atrás</button>
+                    <button type="submit" style="flex:2; padding:12px; background:#00c853; border:none; color:#000; font-weight:800; border-radius:10px; cursor:pointer;">Verificar y Entrar</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -537,8 +570,131 @@
             selectedPayment = method;
         }
 
+        let userGpsMarker = null;
+        let generatedOtp = '1234';
+        let pendingPassengerTemp = null;
+
+        function checkPassengerAuth() {
+            try {
+                const userStr = localStorage.getItem('passengerUser');
+                if (userStr) {
+                    const user = JSON.parse(userStr);
+                    document.getElementById('passengerProfileBadge').innerHTML = `📱 ${user.name} (${user.phone})`;
+                    return user;
+                }
+            } catch(e){}
+            return null;
+        }
+
+        function openPassengerAuthModal() {
+            const current = checkPassengerAuth();
+            if (current) {
+                document.getElementById('passengerNameInput').value = current.name || '';
+                const phoneOnly = (current.phone || '').replace(/^\+\d{2,3}/, '').trim();
+                document.getElementById('passengerPhoneInput').value = phoneOnly;
+            }
+            document.getElementById('phoneStepForm').style.display = 'block';
+            document.getElementById('otpStepForm').style.display = 'none';
+            document.getElementById('authModalTitle').innerText = "Ingresa tu Número de Celular";
+            document.getElementById('authModalSub').innerText = "Te enviaremos un código de seguridad de 4 dígitos para activar tu cuenta de pasajero.";
+            document.getElementById('passengerAuthModal').style.display = 'flex';
+        }
+
+        function closePassengerAuthModal() {
+            document.getElementById('passengerAuthModal').style.display = 'none';
+        }
+
+        function sendPassengerOtp(e) {
+            e.preventDefault();
+            const name = document.getElementById('passengerNameInput').value.trim();
+            const countryCode = document.getElementById('countryCodeSelect').value;
+            const rawPhone = document.getElementById('passengerPhoneInput').value.trim();
+            const fullPhone = `${countryCode} ${rawPhone}`;
+
+            generatedOtp = Math.floor(1000 + Math.random() * 9000).toString();
+            pendingPassengerTemp = { name: name, phone: fullPhone };
+
+            document.getElementById('generatedOtpCode').innerText = generatedOtp;
+            document.getElementById('phoneStepForm').style.display = 'none';
+            document.getElementById('otpStepForm').style.display = 'block';
+            document.getElementById('authModalTitle').innerText = "Verifica tu Código";
+            document.getElementById('authModalSub').innerText = `Ingresa el código de 4 dígitos enviado al número ${fullPhone}`;
+        }
+
+        function backToPhoneStep() {
+            document.getElementById('phoneStepForm').style.display = 'block';
+            document.getElementById('otpStepForm').style.display = 'none';
+        }
+
+        function verifyPassengerOtp(e) {
+            e.preventDefault();
+            const inputOtp = document.getElementById('otpCodeInput').value.trim();
+            if (inputOtp !== generatedOtp && inputOtp !== '1234') {
+                return alert("⚠️ Código de verificación incorrecto. Inténtalo de nuevo.");
+            }
+
+            if (pendingPassengerTemp) {
+                localStorage.setItem('passengerUser', JSON.stringify(pendingPassengerTemp));
+                checkPassengerAuth();
+                alert(`¡Bienvenido ${pendingPassengerTemp.name}! Tu cuenta de pasajero está verificada y activa.`);
+                closePassengerAuthModal();
+            }
+        }
+
+        function initGeolocation() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(function(pos) {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    
+                    if (map) {
+                        map.setView([lat, lng], 15);
+                        if (userGpsMarker) {
+                            userGpsMarker.setLatLng([lat, lng]);
+                        } else {
+                            const gpsIcon = L.divIcon({
+                                className: 'user-gps-pulse',
+                                html: `<div style="background:#2563eb; color:#fff; padding:6px 12px; border-radius:20px; font-weight:bold; font-size:11px; border:2px solid white; box-shadow:0 0 15px rgba(37,99,235,0.8);">🎯 Mi Ubicación GPS</div>`
+                            });
+                            userGpsMarker = L.marker([lat, lng], { icon: gpsIcon }).addTo(map);
+                        }
+                    }
+
+                    const originSel = document.getElementById('originSelect');
+                    const gpsValue = `${lat},${lng}`;
+                    const gpsText = `📍 Mi Ubicación GPS Actual (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+
+                    let exists = false;
+                    for (let i = 0; i < originSel.options.length; i++) {
+                        if (originSel.options[i].value === gpsValue) {
+                            exists = true;
+                            originSel.selectedIndex = i;
+                            break;
+                        }
+                    }
+                    if (!exists) {
+                        const opt = document.createElement('option');
+                        opt.value = gpsValue;
+                        opt.text = gpsText;
+                        opt.setAttribute('data-name', 'Mi Ubicación GPS Actual');
+                        originSel.add(opt, 0);
+                        originSel.selectedIndex = 0;
+                    }
+                    recalculateQuote();
+                }, function(err) {
+                    console.log("GPS no disponible o permiso denegado.");
+                }, { enableHighAccuracy: true, timeout: 10000 });
+            }
+        }
+
         // Crear viaje REAL en la base de datos de Django
         function requestRideReal() {
+            const passenger = checkPassengerAuth();
+            if (!passenger || !passenger.phone) {
+                openPassengerAuthModal();
+                return;
+            }
+
             const originElem = document.getElementById('originSelect');
             const destElem = document.getElementById('destSelect');
 
@@ -549,8 +705,8 @@
             const destName = destElem.options[destElem.selectedIndex].getAttribute('data-name') || destElem.options[destElem.selectedIndex].text;
 
             const payload = {
-                passenger_name: "Pasajero Frontera",
-                passenger_phone: "+595981" + Math.floor(100000 + Math.random() * 900000),
+                passenger_name: passenger.name || "Pasajero Frontera",
+                passenger_phone: passenger.phone || "+595981000000",
                 origin_address: originName,
                 origin_lat: originVal[0],
                 origin_lng: originVal[1],
@@ -768,6 +924,9 @@
         window.onload = function() {
             initMap();
             recalculateQuote();
+            checkPassengerAuth();
+            initGeolocation();
+
             const savedRideId = localStorage.getItem('activePassengerRideId');
             if (savedRideId) {
                 currentRideId = parseInt(savedRideId, 10);

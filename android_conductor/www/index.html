@@ -534,7 +534,7 @@
             if (plateFile) formData.append('photo_license_plate', plateFile);
             if (vehFile) formData.append('photo_vehicle', vehFile);
 
-            const drvName = document.getElementById('newDrvName').value;
+            const hasDocs = ciFile || judFile || polFile || plateFile || vehFile;
 
             fetch('https://apptrnasportesaltos.onrender.com/api/drivers/create/', {
                 method: 'POST',
@@ -542,7 +542,11 @@
             })
             .then(res => res.json())
             .then(data => {
-                alert(`¡Bienvenido ${drvName}! Tu vehículo y documentos se registraron exitosamente. Queda pendiente de verificación por el Admin.`);
+                if (hasDocs) {
+                    alert(`¡Bienvenido ${drvName}! Tu vehículo y documentos se registraron con éxito. Queda pendiente de verificación por el Administrador.`);
+                } else {
+                    alert(`¡Bienvenido ${drvName}! Tu perfil de conductor ha sido creado con éxito.\n\n⚠️ ADVERTENCIA SOBRE DOCUMENTOS:\nHas completado el registro sin adjuntar fotos. Recuerda presentar o subir tus documentos (Cédula, Antecedentes Judiciales/Policiales, Chapa y Vehículo) lo antes posible para ser habilitado por el Administrador.`);
+                }
                 currentDriverId = data.driver_id;
                 localStorage.setItem('activeDriverId', currentDriverId);
                 closeNewDriverModal();
